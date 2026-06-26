@@ -24,36 +24,6 @@ body {
   color: #f4f0e8;
 }
 
-.admin-gate,
-#admin-gate {
-  position: fixed;
-  top: 20px;
-  right: 16px;
-  z-index: 26;
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  text-decoration: none;
-  color: rgba(255, 255, 255, 0.42);
-  background: rgba(12, 12, 10, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  transition:
-    color 0.25s var(--ease),
-    border-color 0.25s var(--ease),
-    background 0.25s var(--ease);
-}
-
-.admin-gate:hover,
-#admin-gate:hover {
-  color: rgba(200, 169, 110, 0.9);
-  border-color: rgba(200, 169, 110, 0.35);
-  background: rgba(20, 20, 18, 0.75);
-}
-
 .immersive-back {
   position: fixed;
   top: 20px;

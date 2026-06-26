@@ -44,7 +44,6 @@ export function createShell(): {
         <span class="light-slider-icon light-slider-icon--night" aria-hidden="true"></span>
       </div>
     </div>
-    <a href="/admin.html" id="admin-gate" class="admin-gate" title="Área restrita">Área restrita</a>
     <button type="button" id="immersive-back" class="immersive-back hidden" aria-label="Voltar ao local anterior">
       ← Voltar
     </button>
