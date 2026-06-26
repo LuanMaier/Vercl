@@ -1,0 +1,124 @@
+{
+  "version": 1,
+  "byView": {
+    "0": [
+      {
+        "id": "v0-portaria",
+        "label": "Portaria",
+        "x": 49.9,
+        "y": 84.2,
+        "tag": "Destaque",
+        "title": "Portaria",
+        "desc": "Descrição do ponto de interesse.",
+        "positionLocked": true,
+        "videoRollback": true,
+        "coordSpace": "image",
+        "cardMediaMode": "loop",
+        "transitionVideo": "/media/custom/poi-v0-portaria-trans.mp4"
+      },
+      {
+        "id": "v0-parque",
+        "label": "Garagem",
+        "x": 28.9,
+        "y": 91.8,
+        "tag": "Destaque",
+        "title": "Parque",
+        "desc": "Descrição do ponto de interesse.",
+        "positionLocked": true,
+        "transitionVideo": "/media/custom/poi-v0-parque-trans.mp4",
+        "img": "/images/custom/poi-v0-parque.png",
+        "coordSpace": "image",
+        "cardMediaMode": "loop"
+      },
+      {
+        "id": "v0-kids",
+        "label": "Pool",
+        "x": 77.1,
+        "y": 91.4,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Kids",
+        "desc": "Descrição do ponto de interesse.",
+        "positionLocked": false,
+        "img": "/images/custom/poi-v0-kids.png",
+        "transitionVideo": "/media/custom/poi-v0-kids-trans.mp4",
+        "cardMediaMode": "loop"
+      }
+    ],
+    "1": [],
+    "2": [],
+    "6": [
+      {
+        "id": "v6-sports",
+        "label": "Wellness",
+        "x": 23.2,
+        "y": 72.8,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Sports",
+        "desc": "Descrição do ponto de interesse.",
+        "positionLocked": false,
+        "transitionVideo": "/media/custom/poi-v6-sports-trans.mp4",
+        "videoRollback": true,
+        "cardMediaMode": "loop-direct"
+      },
+      {
+        "id": "v6-novo-pin-1",
+        "label": "Lateral Pool",
+        "x": 14.3,
+        "y": 74.6,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Novo pin",
+        "desc": "Descrição do ponto de interesse.",
+        "cardMediaMode": "loop-direct"
+      },
+      {
+        "id": "v6-terrace",
+        "label": "Terrace",
+        "x": 28.7,
+        "y": 20.9,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Terrace",
+        "desc": "Descrição do ponto de interesse.",
+        "positionLocked": true,
+        "img": "/images/custom/poi-v6-terrace.png",
+        "transitionVideo": "/media/custom/poi-v6-terrace-trans.mp4"
+      },
+      {
+        "id": "v6-gym",
+        "label": "Gym",
+        "x": 68.2,
+        "y": 74.3,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Gym",
+        "desc": "Descrição do ponto de interesse.",
+        "cardMediaMode": "loop-direct"
+      },
+      {
+        "id": "v6-fire-place",
+        "label": "Fire Place",
+        "x": 77,
+        "y": 76.4,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Fire Place",
+        "desc": "Descrição do ponto de interesse.",
+        "cardMediaMode": "loop-direct"
+      },
+      {
+        "id": "v6-portaria",
+        "label": "Beach",
+        "x": 49.5,
+        "y": 74,
+        "coordSpace": "image",
+        "tag": "Destaque",
+        "title": "Portaria",
+        "desc": "Descrição do ponto de interesse.",
+        "cardMediaMode": "loop-direct"
+      }
+    ]
+  }
+}

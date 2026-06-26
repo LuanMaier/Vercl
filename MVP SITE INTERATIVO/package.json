@@ -1,0 +1,26 @@
+{
+  "name": "mvp-site-interativo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "admin:hash": "node scripts/admin-hash.mjs",
+    "crm:init": "node scripts/init-crm-excel.mjs",
+    "crm:sync": "node scripts/sync-crm.mjs",
+    "restore:create": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-restore-point.ps1",
+    "test:highlights": "npx --yes tsx scripts/test-highlight-coords.mjs",
+    "test": "npm run test:highlights && npm run build"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "exceljs": "^4.4.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}

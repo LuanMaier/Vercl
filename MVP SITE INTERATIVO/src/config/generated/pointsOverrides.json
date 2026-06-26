@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "trackOrder": [
+    0,
+    1,
+    2,
+    6
+  ],
+  "viewpoints": {
+    "1": {
+      "label": "Ambients",
+      "tag": "Por dentro",
+      "title": "Interiores",
+      "desc": "Ambientes internos do empreendimento."
+    },
+    "6": {
+      "label": "Praia",
+      "tag": "Área verde",
+      "title": "Parque",
+      "desc": "Área verde do empreendimento.",
+      "motionBlur": true,
+      "menuMediaMode": "loop",
+      "transitionImage": "/images/custom/view-6-menu.png"
+    }
+  },
+  "removedViews": [
+    9,
+    8,
+    7
+  ]
+}

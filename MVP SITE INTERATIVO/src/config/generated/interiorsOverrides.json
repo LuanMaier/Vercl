@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "int-2",
+      "label": "Living Room",
+      "tag": "Interior",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "video",
+          "label": "Mídia"
+        }
+      ]
+    },
+    {
+      "id": "int-1",
+      "label": "Bedroom",
+      "tag": "Interior",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "video",
+          "label": "Mídia"
+        }
+      ]
+    },
+    {
+      "id": "int-novo-ambiente-4",
+      "label": "Bathroom",
+      "tag": "Book",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "video",
+          "label": "Mídia"
+        }
+      ]
+    },
+    {
+      "id": "int-novo-ambiente-3",
+      "label": "Kidsroom",
+      "tag": "Book",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "video",
+          "label": "Mídia"
+        }
+      ]
+    },
+    {
+      "id": "int-kidsplace",
+      "label": "Kidsplace",
+      "tag": "Book",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "video",
+          "label": "Mídia"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "apt-1",
+      "label": "A",
+      "tag": "Unidade",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "loop",
+          "label": "Loop"
+        }
+      ]
+    },
+    {
+      "id": "apt-2",
+      "label": "BeachView",
+      "tag": "Unidade",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "loop",
+          "label": "Loop"
+        }
+      ]
+    },
+    {
+      "id": "apt-lateral",
+      "label": "Lateral",
+      "tag": "Unidade",
+      "pages": [
+        {
+          "id": "_main",
+          "type": "image",
+          "label": "Mídia"
+        }
+      ]
+    }
+  ]
+}

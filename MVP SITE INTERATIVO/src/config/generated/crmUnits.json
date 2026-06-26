@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-26T14:02:13.609Z",
+  "sourceFile": "public/crm/unidades.xlsx",
+  "units": {
+    "1102": {
+      "status": "sold",
+      "label": "1102",
+      "bedrooms": 3,
+      "price": 3
+    },
+    "1103": {
+      "status": "reserved",
+      "label": "1103",
+      "bedrooms": 2,
+      "price": 620000
+    },
+    "1104": {
+      "status": "available",
+      "label": "1104",
+      "bedrooms": 3,
+      "price": 780000
+    },
+    "1105": {
+      "status": "reserved",
+      "label": "1105",
+      "bedrooms": 2,
+      "price": 550000
+    },
+    "1106": {
+      "status": "available",
+      "label": "1106",
+      "bedrooms": 4,
+      "price": 1200000
+    },
+    "1107": {
+      "status": "sold",
+      "label": "1107",
+      "bedrooms": 4,
+      "price": 620000
+    },
+    "1108": {
+      "status": "reserved",
+      "label": "1108",
+      "bedrooms": 2,
+      "price": 780000
+    },
+    "1109": {
+      "status": "available",
+      "label": "1109",
+      "bedrooms": 3,
+      "price": 550000
+    },
+    "1110": {
+      "status": "reserved",
+      "label": "1110",
+      "bedrooms": 2,
+      "price": 1200000
+    },
+    "1111": {
+      "status": "available",
+      "label": "1111",
+      "bedrooms": 1,
+      "price": 620000
+    },
+    "1112": {
+      "status": "sold",
+      "label": "1112",
+      "bedrooms": 3,
+      "price": 780000
+    },
+    "1113": {
+      "status": "reserved",
+      "label": "1113",
+      "bedrooms": 4,
+      "price": 550000
+    },
+    "1114": {
+      "status": "sold",
+      "label": "1114",
+      "bedrooms": 2,
+      "price": 1200000
+    },
+    "1115": {
+      "status": "sold",
+      "label": "1115",
+      "bedrooms": 2,
+      "price": 620000
+    },
+    "1116": {
+      "status": "available",
+      "label": "1116",
+      "bedrooms": 2,
+      "price": 780000
+    },
+    "1117": {
+      "status": "reserved",
+      "label": "1117",
+      "bedrooms": 3,
+      "price": 550000
+    },
+    "1118": {
+      "status": "sold",
+      "label": "1118",
+      "bedrooms": 4,
+      "price": 1200000
+    },
+    "1119": {
+      "status": "reserved",
+      "label": "1119",
+      "bedrooms": 3,
+      "price": 620000
+    },
+    "1120": {
+      "status": "available",
+      "label": "1120",
+      "bedrooms": 1,
+      "price": 780000
+    },
+    "1121": {
+      "status": "available",
+      "label": "1121",
+      "bedrooms": 3,
+      "price": 550000
+    },
+    "1122": {
+      "status": "sold",
+      "label": "1122",
+      "bedrooms": 2,
+      "price": 1200000
+    },
+    "1123": {
+      "status": "reserved",
+      "label": "1123",
+      "bedrooms": 4,
+      "price": 620000
+    },
+    "1124": {
+      "status": "sold",
+      "label": "1124",
+      "bedrooms": 1,
+      "price": 780000
+    },
+    "1125": {
+      "status": "available",
+      "label": "1125",
+      "bedrooms": 7,
+      "price": 550000
+    },
+    "1126": {
+      "status": "reserved",
+      "label": "1126",
+      "bedrooms": 2,
+      "price": 1200000
+    },
+    "1127": {
+      "status": "sold",
+      "label": "1127",
+      "bedrooms": 2,
+      "price": 620000
+    },
+    "1128": {
+      "status": "reserved",
+      "label": "1128",
+      "bedrooms": 3,
+      "price": 780000
+    },
+    "1129": {
+      "status": "available",
+      "label": "1129",
+      "bedrooms": 4,
+      "price": 550000
+    },
+    "1130": {
+      "status": "available",
+      "label": "1130",
+      "bedrooms": 1,
+      "price": 1200000
+    },
+    "1131": {
+      "status": "sold",
+      "label": "1131",
+      "bedrooms": 2,
+      "price": 620000
+    }
+  }
+}

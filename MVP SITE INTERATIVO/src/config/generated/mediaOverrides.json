@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "lightPosters": {
+    "0": {
+      "day": "/images/custom/view-0-light-day.png",
+      "sunset": "/images/custom/view-0-light-sunset.png",
+      "night": "/images/custom/view-0-light-night.png"
+    }
+  },
+  "lightVideos": {
+    "0": {
+      "sunset": "/media/custom/view-0-light-sunset.trans.mp4",
+      "night": "/media/custom/view-0-light-night.trans.mp4",
+      "day": "/media/custom/view-0-light-day.trans.mp4"
+    }
+  },
+  "heroes": {
+    "0": "/images/custom/view-0-hero.png",
+    "1": "/images/custom/view-1-hero.png",
+    "7": "/images/custom/view-7-hero.png",
+    "8": "/images/custom/view-8-hero.png",
+    "9": "/images/custom/view-8-hero.png"
+  },
+  "poiImages": {
+    "v0-parque": "/images/custom/poi-v0-parque.png",
+    "v6-spots": "/images/custom/poi-v6-spots.png",
+    "v6-kids": "/images/custom/poi-v6-kids.png",
+    "v8-quadra-parquinho": "/images/custom/poi-v8-quadra-parquinho.png",
+    "v0-portaria-quadra-parquinho": "/images/custom/poi-v0-portaria-quadra-parquinho.png",
+    "v0-kids": "/images/custom/poi-v0-kids.png",
+    "v6-terrace": "/images/custom/poi-v6-terrace.png"
+  },
+  "poiLoopVideos": {
+    "v0-kids": "/media/custom/poi-v0-kids-loop.mp4",
+    "v0-portaria": "/media/custom/poi-v0-portaria-loop.mp4",
+    "v0-parque": "/media/custom/poi-v0-parque-loop.mp4",
+    "v6-novo-pin-1": "/media/custom/poi-v6-novo-pin-1-loop.mp4",
+    "v6-gym": "/media/custom/poi-v6-gym-loop.mp4",
+    "v6-sports": "/media/custom/poi-v6-sports-loop.mp4",
+    "v6-novo-pin": "/media/custom/poi-v6-novo-pin-loop.mp4",
+    "v6-fire-place": "/media/custom/poi-v6-fire-place-loop.mp4",
+    "v6-portaria": "/media/custom/poi-v6-portaria-loop.mp4"
+  },
+  "poiVideos": {
+    "v0-parque": "/media/custom/poi-v0-parque-trans.mp4",
+    "v6-sports": "/media/custom/poi-v6-sports-trans.mp4",
+    "v6-kids": "/media/custom/poi-v6-kids-trans.mp4",
+    "v0-kids": "/media/custom/poi-v0-kids-trans.mp4",
+    "v6-terrace": "/media/custom/poi-v6-terrace-trans.mp4",
+    "v0-portaria": "/media/custom/poi-v0-portaria-trans.mp4"
+  },
+  "interiorMedia": {
+    "int-1___main": "/media/custom/book-int-1-_main.mp4",
+    "int-2___main": "/media/custom/book-int-2-_main.mp4",
+    "int-novo-ambiente-4___main": "/media/custom/book-int-novo-ambiente-4-_main.mp4",
+    "int-novo-ambiente-3___main": "/media/custom/book-int-novo-ambiente-3-_main.mp4",
+    "int-kidsplace___main": "/media/custom/book-int-kidsplace-_main.mp4"
+  },
+  "lightSliderVideos": {
+    "0": "/media/custom/view-0-solar.mp4"
+  },
+  "solarFrameInitial": {
+    "0": "/images/custom/view-0-solar-initial.png"
+  },
+  "solarFrameFinal": {
+    "0": "/images/custom/view-0-solar-final.png"
+  },
+  "lightMotionBlur": {
+    "0": true
+  },
+  "menuVideos": {},
+  "menuLoopVideos": {
+    "6": "/media/custom/view-6-menu-loop.mp4"
+  },
+  "viewLoopVideos": {
+    "0": "/media/custom/view-0-loop.mp4",
+    "6": "/media/custom/view-6-loop.mp4"
+  },
+  "viewIdleMode": {
+    "0": "loop",
+    "6": "loop"
+  },
+  "menuImages": {
+    "6": "/images/custom/view-6-menu.png"
+  },
+  "apartmentMedia": {},
+  "apartmentLoopVideos": {
+    "apt-1___main": "/media/custom/apt-apt-1-_main-loop.mp4",
+    "apt-2___main": "/media/custom/apt-apt-2-_main-loop.mp4"
+  }
+}

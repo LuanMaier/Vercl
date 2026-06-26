@@ -1,0 +1,48 @@
+---
+description: Invariantes do editor de Highlights — NÃO alterar sem rodar test:highlights e revisão explícita
+globs: src/edit/apartmentHighlightOutlineLayer.ts,src/edit/apartmentPinsEditor.ts,src/edit/highlightStageMetrics.ts,src/edit/highlightStageContext.ts,src/core/coverCoords.ts,src/core/apartmentOutlineGeometry.ts,src/edit/editStageViewport.ts
+alwaysApply: false
+---
+
+# Highlights editor — configuração travada
+
+Estado validado em 2026-06-22. Regressões aqui quebram vértices, barras laterais e seleção.
+
+## Antes de qualquer mudança nestes arquivos
+
+1. Rodar `npm run test:highlights` e `npm run build`
+2. Testar manualmente: zoom 100%, criar highlight, arrastar vértice + barra lateral + corpo
+3. Não refatorar “por limpeza” sem pedido do usuário
+
+## Invariantes de coordenadas (obrigatórias)
+
+- `isDefaultStageView` em `coverCoords.ts`: zoom 1 + pan 0 usa `fallbackRect` direto (fast path)
+- `pointerToImagePctWithView` e `imagePointToClientPx` / `imagePointToClientPxWithView` devem usar o **mesmo** critério default vs zoomed
+- Nunca remover `isDefaultStageView` em favor de “sempre usar view”
+
+## Invariantes de geometria (obrigatórias)
+
+- Highlights são **retângulos** (4 pontos TL→TR→BR→BL)
+- Arrastar **vértice** → `resizeOutlineByCorner` (canto oposto fixo), **nunca** mover um ponto isolado no buffer
+- Arrastar **barra** → `resizeOutlineByEdge` + `outlineEdgeResizePointer`
+- `edgeHandleLayouts` → `outlineEdgeHandleCenters` + `outlinePointToSvgXY` (image-space)
+- Barras laterais: comprimento ≤ altura/largura real do polígono (não usar min fixo maior que a aresta)
+
+## Invariantes de DOM / eventos
+
+- SVG `#edit-highlight-outline-svg` é filho de `#edit-stage` (não do viewport com transform duplicado)
+- `pointerdown` do SVG em `#edit-stage` **sem** capture phase (`true`)
+- Métricas: `resolveHighlightFacadeMetrics` sem cache `lastMetrics` durante drag
+
+## Imagem / stage
+
+- Fachada dos highlights: `#edit-bg-facade` via `highlightStageContext.ts`
+- Não voltar a token `loadSeq` nem `hidden` na imagem de stage
+- Não chamar `resetView()` ao **entrar** na sub-aba Highlights (`setAptSubtab pins`)
+
+## Proibido sem substituto testado
+
+- Mover SVG para `#edit-stage-viewport` com transform próprio
+- `pointer-events: none` em body-hit de highlights inativos (quebra seleção)
+- edge-hit `stroke-width` > 6px (hitbox sobreposta)
+- Cache de métricas stale no meio do arraste
