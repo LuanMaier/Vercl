@@ -211,6 +211,11 @@ export class ExplorerEngine {
     return this.immersivePoiId
   }
 
+  /** Vídeo idle em loop na vista atual — métricas para posicionar pins. */
+  getLoopVideoMetrics(): { w: number; h: number } | null {
+    return this.videoPlayer?.getLoopVideoMetrics() ?? null
+  }
+
   getImmersiveImageRef() {
     return this.immersiveImageRef
   }

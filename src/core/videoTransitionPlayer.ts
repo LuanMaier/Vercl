@@ -79,6 +79,16 @@ export class VideoTransitionPlayer {
     return this.looping
   }
 
+  /** Dimensões do vídeo em loop no canvas (para alinhar pins com o frame exibido). */
+  getLoopVideoMetrics(): { w: number; h: number } | null {
+    if (!this.looping) return null
+    const v = this.active
+    if (v.videoWidth > 0 && v.videoHeight > 0) {
+      return { w: v.videoWidth, h: v.videoHeight }
+    }
+    return null
+  }
+
   stopLoop() {
     if (!this.looping) return
     this.stopCanvasLoopDraw()

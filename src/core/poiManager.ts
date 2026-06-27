@@ -38,8 +38,12 @@ export class PoiManager {
   private mounted = false
   private unsubEngine: (() => void) | null = null
   private resizeHandler: (() => void) | null = null
+  private viewportHandler: (() => void) | null = null
+  private stageResizeObserver: ResizeObserver | null = null
+  private repositionTimer: ReturnType<typeof setTimeout> | null = null
   private lastView = -1
   private lastLight = ''
+  private lastState = 'idle'
   private lastImmersivePoiId: string | null = null
   private posterMetricsCache = new Map<string, { w: number; h: number }>()
   private immersiveImageMetricsCache = new Map<string, { w: number; h: number }>()
@@ -51,10 +55,27 @@ export class PoiManager {
     this.mounted = true
     this.ensureCard()
     this.mountAll()
-    this.resizeHandler = () => void this.repositionAllPins()
+    this.resizeHandler = () => this.scheduleReposition(true)
     window.addEventListener('resize', this.resizeHandler)
+    this.viewportHandler = () => this.scheduleReposition(true)
+    window.visualViewport?.addEventListener('resize', this.viewportHandler)
+    window.addEventListener('orientationchange', this.viewportHandler)
+    if (typeof ResizeObserver !== 'undefined') {
+      this.stageResizeObserver = new ResizeObserver(() => this.scheduleReposition(true))
+      const stage = document.getElementById('stage')
+      if (stage) this.stageResizeObserver.observe(stage)
+    }
     this.unsubEngine = this.engine.subscribe(() => this.onEngineUpdate())
     void this.repositionAllPins()
+  }
+
+  private scheduleReposition(clearMetrics = false) {
+    if (clearMetrics) this.posterMetricsCache.clear()
+    if (this.repositionTimer) clearTimeout(this.repositionTimer)
+    this.repositionTimer = setTimeout(() => {
+      this.repositionTimer = null
+      void this.repositionAllPins()
+    }, 48)
   }
 
   reload() {
@@ -72,6 +93,17 @@ export class PoiManager {
     if (this.resizeHandler) {
       window.removeEventListener('resize', this.resizeHandler)
       this.resizeHandler = null
+    }
+    if (this.viewportHandler) {
+      window.visualViewport?.removeEventListener('resize', this.viewportHandler)
+      window.removeEventListener('orientationchange', this.viewportHandler)
+      this.viewportHandler = null
+    }
+    this.stageResizeObserver?.disconnect()
+    this.stageResizeObserver = null
+    if (this.repositionTimer) {
+      clearTimeout(this.repositionTimer)
+      this.repositionTimer = null
     }
     this.mount()
     this.updateVisibility()
@@ -150,6 +182,11 @@ export class PoiManager {
   private async getViewPosterMetrics(
     viewIndex: number,
   ): Promise<{ w: number; h: number } | null> {
+    if (this.engine.currentView === viewIndex) {
+      const live = this.engine.getLoopVideoMetrics()
+      if (live) return live
+    }
+
     const key = `${viewIndex}:${this.engine.currentLight}`
     const cached = this.posterMetricsCache.get(key)
     if (cached) return cached
@@ -171,13 +208,17 @@ export class PoiManager {
     if (metrics) {
       migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
     }
-    const pos =
-      metrics && resolved.coordSpace === 'image'
-        ? panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
-        : { x: resolved.x, y: resolved.y }
+    let pos: { x: number; y: number } | null = null
+    if (resolved.coordSpace === 'image') {
+      if (!metrics) return
+      pos = panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
+    } else {
+      pos = { x: resolved.x, y: resolved.y }
+    }
     if (!pos) return
     el.style.left = `${pos.x}%`
     el.style.top = `${pos.y}%`
+    el.style.visibility = ''
   }
 
   private async getImmersiveImageMetrics(
@@ -206,13 +247,17 @@ export class PoiManager {
     if (metrics) {
       migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
     }
-    const pos =
-      metrics && resolved.coordSpace === 'image'
-        ? panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
-        : { x: resolved.x, y: resolved.y }
+    let pos: { x: number; y: number } | null = null
+    if (resolved.coordSpace === 'image') {
+      if (!metrics) return
+      pos = panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
+    } else {
+      pos = { x: resolved.x, y: resolved.y }
+    }
     if (!pos) return
     el.style.left = `${pos.x}%`
     el.style.top = `${pos.y}%`
+    el.style.visibility = ''
   }
 
   private async repositionChildPins(parentId: string) {
@@ -315,6 +360,8 @@ export class PoiManager {
 
     const viewChanged = view !== prevView
     const lightChanged = this.engine.currentLight !== this.lastLight
+    const stateChanged = this.engine.state !== this.lastState
+    const becameIdle = stateChanged && this.engine.state === 'idle'
     const immersiveId = this.engine.getImmersivePoiId()
     if (immersiveId !== this.lastImmersivePoiId) {
       this.lastImmersivePoiId = immersiveId
@@ -324,12 +371,13 @@ export class PoiManager {
       }
     }
     this.updateVisibility()
-    if (viewChanged || lightChanged) {
-      if (lightChanged) this.posterMetricsCache.clear()
+    if (viewChanged || lightChanged || becameIdle) {
+      if (lightChanged || becameIdle) this.posterMetricsCache.clear()
       this.lastLight = this.engine.currentLight
       void this.repositionAllPins()
     }
     this.lastView = view
+    this.lastState = this.engine.state
   }
 
   private mountAll() {
@@ -423,8 +471,12 @@ export class PoiManager {
     const marker = document.createElement('div')
     marker.className = 'poi hidden'
     marker.id = `poi-${poi.id}`
-    marker.style.left = `${poi.x}%`
-    marker.style.top = `${poi.y}%`
+    if (poi.coordSpace === 'image') {
+      marker.style.visibility = 'hidden'
+    } else {
+      marker.style.left = `${poi.x}%`
+      marker.style.top = `${poi.y}%`
+    }
     marker.style.setProperty('--poi-delay', `${index * 0.11}s`)
     marker.innerHTML = `
       <div class="poi-actions">

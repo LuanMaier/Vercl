@@ -87,7 +87,16 @@ export async function resolveViewStillPosterSrc(
 export function loadPosterImageMetrics(src: string): Promise<{ w: number; h: number } | null> {
   return new Promise((resolve) => {
     const img = new Image()
-    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight })
+    const finish = () => {
+      if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+        resolve({ w: img.naturalWidth, h: img.naturalHeight })
+      } else {
+        resolve(null)
+      }
+    }
+    img.onload = () => {
+      void img.decode?.().then(finish).catch(finish)
+    }
     img.onerror = () => resolve(null)
     img.src = src
   })

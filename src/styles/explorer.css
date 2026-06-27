@@ -2448,20 +2448,36 @@ body.is-playing .apt-filter-dock.is-visible {
   }
 }
 
-/* Área de toque maior sem mudar o visual dos pins */
-body.is-mobile .poi-btn {
+/* Pins menores no mobile — desktop inalterado */
+body.is-mobile .poi:not(.poi--apartment) .poi-actions {
+  transform: scale(0.5);
+  transform-origin: center center;
+}
+
+body.is-mobile .poi:not(.poi--apartment) .poi-btn {
   box-sizing: content-box;
-  padding: 11px;
-  margin: -22px 0 0 -22px;
+  padding: 24px;
+  margin: -35px 0 0 -35px;
+}
+
+body.is-mobile .poi--apartment .poi-actions {
+  transform: scale(0.5);
+  transform-origin: center center;
 }
 
 body.is-mobile .poi--apartment .poi-btn {
-  padding: 9px;
-  margin: -20px 0 0 -20px;
+  padding: 20px;
+  margin: -30px 0 0 -30px;
 }
 
 body.is-mobile .poi-name {
   pointer-events: none;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+body.is-mobile .poi:not(.poi--apartment) .poi-name {
+  top: calc(100% - 2px);
 }
 
 body.is-mobile #mood-bar.light-slider-bar {
@@ -2472,29 +2488,41 @@ body.is-mobile .light-slider {
   touch-action: none;
 }
 
-/* Dock igual ao desktop: mesmas abas/labels; rola horizontal se não couber */
+/* Dock igual ao desktop: mesmas abas/labels; encaixa em 390px sem scroll */
 body.is-mobile .dock-tabs,
 body.is-mobile #track-pts {
-  width: min(960px, calc(100vw - 16px));
-  max-width: min(960px, calc(100vw - 16px));
-  overflow-x: auto;
+  width: min(960px, calc(100vw - 24px));
+  max-width: min(960px, calc(100vw - 24px));
+  overflow-x: hidden;
   overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  justify-content: center;
 }
 
 body.is-mobile .dock-tabs .dock-tab,
 body.is-mobile .dock-tabs .t-pt,
 body.is-mobile #track-pts .dock-tab,
 body.is-mobile #track-pts .t-pt {
-  flex: 0 0 var(--dock-tab-w);
-  width: var(--dock-tab-w);
-  max-width: var(--dock-tab-w);
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: none;
 }
 
 body.is-mobile .dock-tabs[data-count='4'],
 body.is-mobile #track-pts[data-count='4'] {
-  --dock-tab-w: 104px;
+  --dock-tab-w: calc((100% - 18px) / 4);
+}
+
+body.is-mobile .dock-tabs[data-count='4'] .dock-tab-label,
+body.is-mobile .dock-tabs[data-count='4'] .t-pt-main .dock-tab-label,
+body.is-mobile #track-pts[data-count='4'] .dock-tab-label {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+body.is-mobile .dock-panel {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 body.is-mobile .immersive-back {
