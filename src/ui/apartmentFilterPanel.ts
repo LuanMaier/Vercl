@@ -16,9 +16,22 @@ import {
   setPriceRange,
   toggleFilterStatus,
 } from '../config/crmFilterConfig'
+import { isMobileViewport } from '../core/paths'
 import type { ExplorerEngine } from '../core/engine'
 
 const STATUS_OPTIONS: CrmUnitStatus[] = ['available', 'reserved', 'sold']
+
+function statusLabel(status: CrmUnitStatus): string {
+  if (!isMobileViewport()) return getCrmStatusLabelFilter(status)
+  switch (status) {
+    case 'reserved':
+      return 'Reserva'
+    case 'sold':
+      return 'Vendido'
+    default:
+      return 'Livre'
+  }
+}
 
 function setupDualRange(
   root: HTMLElement,
@@ -161,7 +174,7 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     statusEl.innerHTML = STATUS_OPTIONS.map(
       (s) => `
       <button type="button" class="apt-filter-segment-btn crm--${s}${state.statuses.has(s) ? ' is-on' : ''}" data-status="${s}">
-        ${getCrmStatusLabelFilter(s)}
+        ${statusLabel(s)}
       </button>
     `,
     ).join('')
@@ -233,11 +246,14 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
   })
 
   const unsub = engine.subscribe(() => updateVisibility())
+  const onViewportChange = () => renderStatus()
+  window.addEventListener('resize', onViewportChange)
   syncControls()
   updateVisibility()
 
   const cleanup = () => {
     unsub()
+    window.removeEventListener('resize', onViewportChange)
     updateVisibility()
   }
   ;(mountApartmentFilterPanel as { _cleanup?: () => void })._cleanup = cleanup

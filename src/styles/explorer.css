@@ -2415,12 +2415,6 @@ body.is-playing .apt-filter-dock.is-visible {
 }
 
 @media (max-width: 720px) {
-  .apt-filter-dock {
-    right: 12px;
-    width: min(260px, calc(100vw - 24px));
-    bottom: calc(152px + env(safe-area-inset-bottom, 0px));
-  }
-
   .apt-filter-dock-panel {
     padding: 12px 12px 10px;
   }
@@ -2534,6 +2528,104 @@ body.is-mobile #track-pts[data-count='4'] .dock-tab-label {
 body.is-mobile .dock-panel {
   padding-left: 12px;
   padding-right: 12px;
+}
+
+/* Filtro CRM — compacto, canto inferior esquerdo (só mobile) */
+body.is-mobile .apt-filter-dock {
+  right: auto;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  width: min(236px, calc(100vw - 120px));
+  bottom: calc(142px + env(safe-area-inset-bottom, 0px));
+}
+
+body.is-mobile.dock-menu-collapsed .apt-filter-dock.is-visible {
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+}
+
+body.is-mobile .apt-filter-dock-panel {
+  border-radius: 14px;
+  padding: 9px 10px 8px;
+}
+
+body.is-mobile .apt-filter-dock-head {
+  align-items: center;
+  padding-bottom: 8px;
+  margin-bottom: 0;
+}
+
+body.is-mobile .apt-filter-eyebrow {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  margin-bottom: 2px;
+}
+
+body.is-mobile .apt-filter-dock-title {
+  font-size: 13px;
+}
+
+body.is-mobile .apt-filter-dock-badge {
+  margin-top: 0;
+  min-width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+
+body.is-mobile .apt-filter-dock-body {
+  gap: 7px;
+  padding: 7px 0 5px;
+}
+
+body.is-mobile .apt-filter-section + .apt-filter-section {
+  padding-top: 7px;
+}
+
+body.is-mobile .apt-filter-section-label {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+body.is-mobile .apt-filter-section-head {
+  margin-bottom: 5px;
+}
+
+body.is-mobile .apt-filter-range-label {
+  font-size: 9px;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.is-mobile .apt-filter-segment {
+  gap: 3px;
+  padding: 3px;
+}
+
+body.is-mobile .apt-filter-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 9px;
+  line-height: 1.1;
+  letter-spacing: 0;
+  padding: 6px 2px;
+  min-height: 28px;
+}
+
+body.is-mobile .apt-filter-range {
+  height: 28px;
+}
+
+body.is-mobile .apt-filter-dock-foot {
+  padding-top: 6px;
+}
+
+body.is-mobile .apt-filter-clear {
+  padding: 7px 10px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
 }
 
 body.is-mobile .immersive-back {
