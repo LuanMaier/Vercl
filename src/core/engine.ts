@@ -37,6 +37,7 @@ import { isPanoramaView, panoramaFade } from './panoramaFade'
 import { stageFade } from './stageFade'
 import { prefetchForView, prefetchPoiVideo } from './prefetch'
 import type { VideoPlayOptions } from './videoTransitionPlayer'
+import { syncStageCanvas } from './stageMetrics'
 import { resolveMediaPath, prefersReducedMotion, isMobileViewport, desktopMediaPath } from './paths'
 import type { FrameSequence, JumpOptions, LightMode, NavStep, PlayState, VideoTransition } from './types'
 import { edgeKey, isSequenceTransition, isVideoTransition } from './types'
@@ -129,11 +130,7 @@ export class ExplorerEngine {
   }
 
   resize() {
-    const mobile = isMobileViewport()
-    const dpr = mobile ? 1 : Math.min(window.devicePixelRatio || 1, 2)
-    this.canvas.width = window.innerWidth * dpr
-    this.canvas.height = window.innerHeight * dpr
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    syncStageCanvas(this.canvas, this.ctx)
   }
 
   drawFrame(
@@ -141,9 +138,8 @@ export class ExplorerEngine {
     blurPx = 0,
     fit?: ImageFitMode,
   ) {
-    const w = window.innerWidth
-    const h = window.innerHeight
-    drawImageFit(this.ctx, img, w, h, blurPx, fit ?? getDefaultCanvasFit())
+    const layout = syncStageCanvas(this.canvas, this.ctx)
+    drawImageFit(this.ctx, img, layout.w, layout.h, blurPx, fit ?? getDefaultCanvasFit())
   }
 
   /** Frame de vídeo no canvas (slider de sol). */

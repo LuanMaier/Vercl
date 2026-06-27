@@ -1,4 +1,5 @@
 import type { ImageFitMode } from './coverCoords'
+import { isMobileViewport } from './paths'
 
 /** Intensidade máxima do blur (px) no meio da transição */
 const MAX_BLUR_PX = 11
@@ -37,21 +38,28 @@ export function drawImageFit(
   ctx.clearRect(0, 0, viewW, viewH)
 
   if (mode === 'contain') {
-    const coverScale = Math.max(viewW / nw, viewH / nh)
-    const cdw = Math.round(nw * coverScale)
-    const cdh = Math.round(nh * coverScale)
-    const cdx = Math.round((viewW - cdw) / 2)
-    const cdy = Math.round((viewH - cdh) / 2)
-    ctx.save()
-    ctx.filter = 'blur(32px) brightness(0.36) saturate(1.1)'
-    ctx.drawImage(img, cdx, cdy, cdw, cdh)
-    ctx.restore()
-
     const scale = Math.min(viewW / nw, viewH / nh)
     const dw = Math.round(nw * scale)
     const dh = Math.round(nh * scale)
     const dx = Math.round((viewW - dw) / 2)
     const dy = Math.round((viewH - dh) / 2)
+
+    /* iOS Safari: ctx.filter no fundo blur corrompe o canvas (cena “triplicada”). */
+    if (!isMobileViewport()) {
+      const coverScale = Math.max(viewW / nw, viewH / nh)
+      const cdw = Math.round(nw * coverScale)
+      const cdh = Math.round(nh * coverScale)
+      const cdx = Math.round((viewW - cdw) / 2)
+      const cdy = Math.round((viewH - cdh) / 2)
+      ctx.save()
+      ctx.filter = 'blur(32px) brightness(0.36) saturate(1.1)'
+      ctx.drawImage(img, cdx, cdy, cdw, cdh)
+      ctx.restore()
+    } else {
+      ctx.fillStyle = '#050503'
+      ctx.fillRect(0, 0, viewW, viewH)
+    }
+
     if (blurPx > 0.35) {
       ctx.save()
       ctx.filter = `blur(${blurPx.toFixed(2)}px)`

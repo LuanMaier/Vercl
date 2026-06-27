@@ -16,10 +16,11 @@ import {
   loadPosterImageMetrics,
   migratePanoramaPinToImageCoords,
   panoramaPinStagePct,
-  resolveViewStillPosterSrc,
+  resolveViewMediaMetrics,
 } from './panoramaPinLayout'
 import { collapseDockMenu } from '../ui/dockCollapse'
 import { bindTap } from '../ui/bindTap'
+import { getStageMetrics } from './stageMetrics'
 import type { ExplorerEngine } from './engine'
 import type { JumpOptions, PoiDefinition } from './types'
 
@@ -181,19 +182,18 @@ export class PoiManager {
 
   private async getViewPosterMetrics(
     viewIndex: number,
-  ): Promise<{ w: number; h: number } | null> {
-    if (this.engine.currentView === viewIndex) {
-      const live = this.engine.getLoopVideoMetrics()
-      if (live) return live
-    }
-
-    const key = `${viewIndex}:${this.engine.currentLight}`
+  ): Promise<{ w: number; h: number }> {
+    const live =
+      this.engine.currentView === viewIndex ? this.engine.getLoopVideoMetrics() : null
+    const key = `${viewIndex}:${this.engine.currentLight}:${live ? `${live.w}x${live.h}` : 'static'}`
     const cached = this.posterMetricsCache.get(key)
     if (cached) return cached
-    const src = await resolveViewStillPosterSrc(viewIndex, this.engine.currentLight)
-    if (!src) return null
-    const metrics = await loadPosterImageMetrics(src)
-    if (!metrics) return null
+
+    const metrics = await resolveViewMediaMetrics(
+      viewIndex,
+      this.engine.currentLight,
+      live,
+    )
     this.posterMetricsCache.set(key, metrics)
     return metrics
   }
@@ -201,16 +201,12 @@ export class PoiManager {
   private async applyPinPosition(poi: PoiDefinition, viewIndex: number) {
     const el = document.getElementById(`poi-${poi.id}`) as HTMLElement | null
     if (!el) return
-    const viewW = window.innerWidth
-    const viewH = window.innerHeight
+    const { w: viewW, h: viewH } = getStageMetrics()
     const metrics = await this.getViewPosterMetrics(viewIndex)
     const resolved = { ...poi }
-    if (metrics) {
-      migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
-    }
+    migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
     let pos: { x: number; y: number } | null = null
     if (resolved.coordSpace === 'image') {
-      if (!metrics) return
       pos = panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
     } else {
       pos = { x: resolved.x, y: resolved.y }
@@ -240,8 +236,7 @@ export class PoiManager {
   private async applyChildPinPosition(poi: PoiDefinition, parentId: string) {
     const el = document.getElementById(`poi-${poi.id}`) as HTMLElement | null
     if (!el) return
-    const viewW = window.innerWidth
-    const viewH = window.innerHeight
+    const { w: viewW, h: viewH } = getStageMetrics()
     const metrics = await this.getImmersiveImageMetrics(parentId)
     const resolved = { ...poi, coordSpace: 'image' as const }
     if (metrics) {
@@ -438,6 +433,7 @@ export class PoiManager {
         this.engine.state === 'idle' &&
         ptIdx === this.engine.currentView
       el.classList.toggle('hidden', !show)
+      if (show) el.style.visibility = ''
       if (!show) {
         el.classList.remove('is-active')
       }

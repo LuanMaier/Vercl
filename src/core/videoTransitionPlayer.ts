@@ -2,6 +2,7 @@ import { isMobileViewport, resolveVideoSrcCandidates } from './paths'
 import { drawImageFit } from './motionBlur'
 import type { ImageFitMode } from './coverCoords'
 import { getDefaultCanvasFit } from './coverCoords'
+import { syncStageCanvas } from './stageMetrics'
 import type { VideoTransition } from './types'
 
 export type VideoPlayOptions = {
@@ -80,9 +81,8 @@ export class VideoTransitionPlayer {
     return this.looping
   }
 
-  /** Dimensões do vídeo em loop no canvas (para alinhar pins com o frame exibido). */
+  /** Dimensões do vídeo ativo no player (loop ou transição). */
   getLoopVideoMetrics(): { w: number; h: number } | null {
-    if (!this.looping) return null
     const v = this.active
     if (v.videoWidth > 0 && v.videoHeight > 0) {
       return { w: v.videoWidth, h: v.videoHeight }
@@ -92,7 +92,11 @@ export class VideoTransitionPlayer {
 
   stopLoop() {
     if (!this.looping) return
+    const v = this.active
     this.stopCanvasLoopDraw()
+    if (v.readyState >= 2 && v.videoWidth > 0) {
+      this.snapVideoFrameToCanvas(v)
+    }
     this.looping = false
     this.active.loop = false
     this.active.pause()
@@ -208,7 +212,8 @@ export class VideoTransitionPlayer {
       const draw = () => {
         if (!this.looping) return
         if (ctx && v.readyState >= 2) {
-          drawImageFit(ctx, v, window.innerWidth, window.innerHeight, 0, this.loopFit)
+          const layout = syncStageCanvas(this.canvas, ctx)
+          drawImageFit(ctx, v, layout.w, layout.h, 0, this.loopFit)
         }
         this.loopRaf = requestAnimationFrame(draw)
       }
@@ -603,7 +608,8 @@ export class VideoTransitionPlayer {
     if (!v.videoWidth) return
     const ctx = this.canvas.getContext('2d')
     if (!ctx) return
-    drawImageFit(ctx, v, window.innerWidth, window.innerHeight, 0, getDefaultCanvasFit())
+    const layout = syncStageCanvas(this.canvas, ctx)
+    drawImageFit(ctx, v, layout.w, layout.h, 0, getDefaultCanvasFit())
   }
 
   prefetch(config: VideoTransition) {

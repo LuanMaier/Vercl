@@ -43,6 +43,12 @@ export async function initMobileExperience(): Promise<void> {
   window.addEventListener('orientationchange', () => {
     window.setTimeout(syncViewportClasses, 120)
   })
+  window.visualViewport?.addEventListener('resize', () => {
+    window.dispatchEvent(new Event('resize'))
+  })
+  window.visualViewport?.addEventListener('scroll', () => {
+    window.dispatchEvent(new Event('resize'))
+  })
 
   const conn = (navigator as Navigator & { connection?: EventTarget }).connection
   conn?.addEventListener?.('change', syncViewportClasses)

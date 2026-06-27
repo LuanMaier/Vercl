@@ -2,6 +2,7 @@ import { getHeroRef } from '../config/heroConfig'
 import { getLightPoster } from '../config/lighting'
 import { getProjectSolarFrameInitial } from '../config/projectMedia'
 import { POSTERS } from '../config/posters'
+import { getViewLoopConfig } from '../config/viewLoops'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
 import { isPanoramaView } from './panoramaFade'
 import {
@@ -82,6 +83,62 @@ export async function resolveViewStillPosterSrc(
     : (getLightPoster(viewIndex, light) ?? getHeroRef(viewIndex) ?? POSTERS[viewIndex])
   if (!ref) return undefined
   return (await resolveMediaSrc(ref)) ?? resolveMediaPath(ref)
+}
+
+/** Proporção padrão dos renders (fallback se poster/vídeo não carregar). */
+export const DEFAULT_VIEW_MEDIA_METRICS = { w: 1928, h: 1072 }
+
+export function loadVideoMetrics(src: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.muted = true
+    video.playsInline = true
+
+    const done = (metrics: { w: number; h: number } | null) => {
+      video.onloadedmetadata = null
+      video.onerror = null
+      video.removeAttribute('src')
+      video.load()
+      resolve(metrics)
+    }
+
+    video.onloadedmetadata = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        done({ w: video.videoWidth, h: video.videoHeight })
+      } else {
+        done(null)
+      }
+    }
+    video.onerror = () => done(null)
+    video.src = src
+  })
+}
+
+/** Poster → loop da vista → proporção padrão. */
+export async function resolveViewMediaMetrics(
+  viewIndex: number,
+  light: LightMode,
+  liveVideo?: { w: number; h: number } | null,
+): Promise<{ w: number; h: number }> {
+  if (liveVideo) return liveVideo
+
+  const posterSrc = await resolveViewStillPosterSrc(viewIndex, light)
+  if (posterSrc) {
+    const poster = await loadPosterImageMetrics(posterSrc)
+    if (poster) return poster
+  }
+
+  const loop = getViewLoopConfig(viewIndex)
+  if (loop?.src) {
+    const loopSrc = (await resolveMediaSrc(loop.src)) ?? resolveMediaPath(loop.src)
+    if (loopSrc) {
+      const video = await loadVideoMetrics(loopSrc)
+      if (video) return video
+    }
+  }
+
+  return DEFAULT_VIEW_MEDIA_METRICS
 }
 
 export function loadPosterImageMetrics(src: string): Promise<{ w: number; h: number } | null> {
