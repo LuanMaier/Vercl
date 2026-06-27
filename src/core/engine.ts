@@ -35,9 +35,9 @@ import { STILL_VIEW_IMAGE_FIT, type ImageFitMode } from './coverCoords'
 import { interiorFade } from './interiorFade'
 import { isPanoramaView, panoramaFade } from './panoramaFade'
 import { stageFade } from './stageFade'
-import { prefetchForView } from './prefetch'
+import { prefetchForView, prefetchPoiVideo } from './prefetch'
 import type { VideoPlayOptions } from './videoTransitionPlayer'
-import { resolveMediaPath } from './paths'
+import { resolveMediaPath, prefersReducedMotion, isMobileViewport, desktopMediaPath } from './paths'
 import type { FrameSequence, JumpOptions, LightMode, NavStep, PlayState, VideoTransition } from './types'
 import { edgeKey, isSequenceTransition, isVideoTransition } from './types'
 import type { VideoTransitionPlayer } from './videoTransitionPlayer'
@@ -104,6 +104,10 @@ export class ExplorerEngine {
     this.videoPlayer = player
   }
 
+  prefetchPoiMedia(ref: string) {
+    prefetchPoiVideo(ref, this.videoPlayer ?? undefined)
+  }
+
   subscribe(fn: EngineListener) {
     this.listeners.add(fn)
     return () => this.listeners.delete(fn)
@@ -125,7 +129,7 @@ export class ExplorerEngine {
   }
 
   resize() {
-    const mobile = window.matchMedia('(hover: none)').matches || window.innerWidth < 768
+    const mobile = isMobileViewport()
     const dpr = mobile ? 1 : Math.min(window.devicePixelRatio || 1, 2)
     this.canvas.width = window.innerWidth * dpr
     this.canvas.height = window.innerHeight * dpr
@@ -178,10 +182,20 @@ export class ExplorerEngine {
 
   private loadCoverImage(src: string): Promise<HTMLImageElement | null> {
     return new Promise((resolve) => {
+      const mobileSrc = resolveMediaPath(src)
       const img = new Image()
       img.onload = () => resolve(img)
-      img.onerror = () => resolve(null)
-      img.src = src
+      img.onerror = () => {
+        if (mobileSrc !== src) {
+          const fallback = new Image()
+          fallback.onload = () => resolve(fallback)
+          fallback.onerror = () => resolve(null)
+          fallback.src = desktopMediaPath(mobileSrc)
+          return
+        }
+        resolve(null)
+      }
+      img.src = mobileSrc
     })
   }
 
@@ -1119,10 +1133,12 @@ export class ExplorerEngine {
     opts?: { releaseOverlayOnFirstFrame?: boolean },
   ) {
     const { pad = 2, ext = 'jpg', reverse = false } = seq
-    const base = resolveMediaPath(seq.base)
-    const mobile = window.matchMedia('(hover: none)').matches || window.innerWidth < 768
+    const desktopBase = seq.base
+    const mobileBase = resolveMediaPath(seq.base)
+    const mobile = isMobileViewport()
+    const reduced = prefersReducedMotion()
     const step = mobile ? 2 : 1
-    const fps = mobile ? 20 : (seq.fps ?? 36)
+    const fps = reduced ? 14 : mobile ? 20 : (seq.fps ?? 36)
     const interval = 1000 / fps
 
     const indices: number[] = []
@@ -1132,6 +1148,32 @@ export class ExplorerEngine {
     const count = indices.length
     const frames: (HTMLImageElement | null)[] = new Array(count).fill(null)
 
+    const frameSrc = (slot: number, useDesktop: boolean) => {
+      const base = useDesktop ? desktopBase : mobileBase
+      return base + String(indices[slot]).padStart(pad, '0') + '.' + ext
+    }
+
+    if (reduced && count > 0) {
+      const finishStill = (useDesktop: boolean) => {
+        const img = new Image()
+        const slot = reverse ? 0 : count - 1
+        img.onload = () => {
+          this.drawFrame(img, 0, STILL_VIEW_IMAGE_FIT)
+          if (opts?.releaseOverlayOnFirstFrame ?? stageFade.isTransitionHold()) {
+            this.releaseTransitionOverlay()
+          }
+          onDone()
+        }
+        img.onerror = () => {
+          if (!useDesktop && mobileBase !== desktopBase) finishStill(true)
+          else onDone()
+        }
+        img.src = frameSrc(slot, useDesktop)
+      }
+      finishStill(false)
+      return
+    }
+
     const slots = mobile ? 4 : count
     let nextLoad = 0
 
@@ -1140,8 +1182,15 @@ export class ExplorerEngine {
       const i = nextLoad++
       const img = new Image()
       img.onload = loadSlot
-      img.onerror = loadSlot
-      img.src = base + String(indices[i]).padStart(pad, '0') + '.' + ext
+      img.onerror = () => {
+        if (mobile && mobileBase !== desktopBase && img.dataset.fallback !== '1') {
+          img.dataset.fallback = '1'
+          img.src = frameSrc(i, true)
+          return
+        }
+        loadSlot()
+      }
+      img.src = frameSrc(i, false)
       frames[i] = img
     }
     for (let k = 0; k < Math.min(slots, count); k++) loadSlot()

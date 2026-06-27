@@ -403,7 +403,7 @@ export class PoiManager {
       e.stopPropagation()
       void this.onChildPoiClick(poi)
     }
-    this.bindPoiActivate(marker, activate)
+    this.bindPoiActivate(marker, poi, activate)
     document.body.appendChild(marker)
   }
 
@@ -414,7 +414,7 @@ export class PoiManager {
       e.stopPropagation()
       void this.onPoiClick(poi, viewIndex)
     }
-    this.bindPoiActivate(marker, activate)
+    this.bindPoiActivate(marker, poi, activate)
     document.body.appendChild(marker)
   }
 
@@ -441,12 +441,17 @@ export class PoiManager {
     return marker
   }
 
-  private bindPoiActivate(marker: HTMLElement, activate: (e: Event) => void) {
+  private bindPoiActivate(marker: HTMLElement, poi: PoiDefinition, activate: (e: Event) => void) {
     const btn = marker.querySelector('.poi-btn')!
+    const warmPrefetch = () => {
+      const videoRef = poi.transitionVideo ?? getProjectPoiVideoPath(poi.id)
+      if (videoRef) this.engine.prefetchPoiMedia(videoRef)
+    }
     btn.addEventListener('click', activate)
     btn.addEventListener(
       'touchstart',
       (e) => {
+        warmPrefetch()
         if (e.cancelable) e.preventDefault()
         activate(e)
       },

@@ -8,6 +8,7 @@ import { POI_STORAGE_KEY } from './config/poiConfig'
 import { APARTMENT_POIS_VERSION_KEY, POIS_OVERRIDES_VERSION_KEY, reloadProjectFiles } from './config/projectMedia'
 import { CRM_UNITS_VERSION_KEY, reloadCrmUnits } from './config/crmConfig'
 import { clearPrefetchCache } from './core/prefetch'
+import { initMobileExperience } from './ui/mobile'
 import { POI_MEDIA_VERSION_KEY } from './media/poiMediaStore'
 import { revokeAllPoiMediaUrls } from './media/resolvePoiMedia'
 import { VideoTransitionPlayer } from './core/videoTransitionPlayer'
@@ -141,6 +142,7 @@ window.addEventListener('keydown', (e) => {
 })
 
 void (async () => {
+  await initMobileExperience()
   await reloadProjectFiles()
   await reloadCrmUnits()
   poiManager.mount()

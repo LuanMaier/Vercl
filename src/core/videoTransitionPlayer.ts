@@ -1,4 +1,4 @@
-import { resolveVideoSrc } from './paths'
+import { isMobileViewport, resolveVideoSrcCandidates } from './paths'
 import { drawImageCover, drawImageFit } from './motionBlur'
 import type { ImageFitMode } from './coverCoords'
 import type { VideoTransition } from './types'
@@ -53,7 +53,7 @@ export class VideoTransitionPlayer {
   private bind(v: HTMLVideoElement) {
     v.playsInline = true
     v.muted = true
-    v.preload = 'auto'
+    v.preload = isMobileViewport() ? 'metadata' : 'auto'
 
     v.addEventListener('ended', () => {
       if (!this.playing || this.looping || v !== this.active) return
@@ -124,6 +124,44 @@ export class VideoTransitionPlayer {
     loopSettle?.(false)
   }
 
+  private loadVideoSources(
+    v: HTMLVideoElement,
+    config: VideoTransition,
+    onReady: () => void,
+    onFail: () => void,
+  ) {
+    const sources = resolveVideoSrcCandidates(config)
+    let idx = 0
+
+    const cleanup = () => {
+      v.removeEventListener('loadedmetadata', onMeta)
+      v.removeEventListener('loadeddata', onMeta)
+      v.onerror = null
+    }
+
+    const onMeta = () => {
+      cleanup()
+      onReady()
+    }
+
+    const tryNext = () => {
+      cleanup()
+      if (idx >= sources.length) {
+        onFail()
+        return
+      }
+      const src = sources[idx++]!
+      v.onerror = () => tryNext()
+      v.addEventListener('loadedmetadata', onMeta)
+      v.addEventListener('loadeddata', onMeta)
+      v.src = src
+      if (config.poster) v.poster = config.poster
+      v.load()
+    }
+
+    tryNext()
+  }
+
   /** Loop idle (Genvis-style). @returns false se o vídeo não carregar */
   playLoop(config: VideoTransition): Promise<boolean> {
     return this.playCanvasLoop(config, 'cover')
@@ -137,7 +175,6 @@ export class VideoTransitionPlayer {
       this.loopFit = fit
       this.loopSettle = resolve
 
-      const src = resolveVideoSrc(config)
       const v = this.active
       v.loop = true
       const ctx = this.canvas.getContext('2d')
@@ -147,7 +184,7 @@ export class VideoTransitionPlayer {
         this.loopSettle = null
         this.stopLoop()
         resolve(false)
-      }, 25000)
+      }, isMobileViewport() ? 35000 : 25000)
 
       const finish = (ok: boolean) => {
         clearTimeout(bail)
@@ -165,7 +202,7 @@ export class VideoTransitionPlayer {
         this.loopRaf = requestAnimationFrame(draw)
       }
 
-      v.oncanplay = () => {
+      const onReady = () => {
         v.oncanplay = null
         void v.play().then(
           () => {
@@ -179,11 +216,17 @@ export class VideoTransitionPlayer {
         )
       }
 
-      v.onerror = () => finish(false)
+      v.oncanplay = onReady
 
-      v.src = src
-      if (config.poster) v.poster = config.poster
-      v.load()
+      this.loadVideoSources(
+        v,
+        config,
+        () => {
+          if (!this.looping) return
+          if (v.readyState >= 2) onReady()
+        },
+        () => finish(false),
+      )
     })
   }
 
@@ -209,7 +252,7 @@ export class VideoTransitionPlayer {
 
       this.bailTimer = window.setTimeout(() => {
         if (this.playing) this.endTransition(false)
-      }, 25000)
+      }, isMobileViewport() ? 35000 : 25000)
 
       const useMotionBlur =
         !reverse && options?.motionBlur && Boolean(options.onMotionBlurFrame)
@@ -275,20 +318,13 @@ export class VideoTransitionPlayer {
       }
 
       let ready = false
-      const onMeta = () => {
+      const markReady = () => {
         if (ready) return
         ready = true
-        v.removeEventListener('loadedmetadata', onMeta)
-        v.removeEventListener('loadeddata', onMeta)
         afterReady()
       }
 
-      const src = resolveVideoSrc(config)
-      v.src = src
-      if (config.poster) v.poster = config.poster
-      v.addEventListener('loadedmetadata', onMeta)
-      v.addEventListener('loadeddata', onMeta)
-      v.load()
+      this.loadVideoSources(v, config, markReady, () => this.endTransition(false))
     })
   }
 
@@ -563,7 +599,7 @@ export class VideoTransitionPlayer {
     const link = document.createElement('link')
     link.rel = 'prefetch'
     link.as = 'video'
-    link.href = resolveVideoSrc(config)
+    link.href = resolveVideoSrcCandidates(config)[0]!
     document.head.appendChild(link)
   }
 }

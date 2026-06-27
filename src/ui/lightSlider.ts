@@ -281,13 +281,16 @@ export function mountLightSlider(
     scrubbing = false
   }
 
-  range.addEventListener('pointerdown', () => {
+  const beginScrub = () => {
     scrubbing = true
     if (video.preload !== 'auto') {
       video.preload = 'auto'
       if (loadedSrc && video.readyState < 2) video.load()
     }
-  })
+  }
+
+  range.addEventListener('pointerdown', beginScrub)
+  range.addEventListener('touchstart', beginScrub, { passive: true })
   range.addEventListener('input', onScrubInput)
   range.addEventListener('change', endScrub)
   range.addEventListener('pointerup', endScrub)

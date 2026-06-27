@@ -2500,3 +2500,176 @@ body.is-playing .apt-filter-dock.is-visible {
   pointer-events: none !important;
   visibility: hidden !important;
 }
+
+/* ── Mobile experience ── */
+:root {
+  --dock-chrome-h: 92px;
+  --mood-chrome-h: 54px;
+}
+
+@media (hover: none) {
+  .poi-btn,
+  .dock-tab,
+  .t-pt,
+  .immersive-back,
+  .light-slider,
+  .apt-filter-segment-btn,
+  .apt-filter-clear,
+  .dock-reveal,
+  [data-pano-close] {
+    touch-action: manipulation;
+  }
+}
+
+@media (hover: none), (max-width: 768px) {
+  .poi-btn {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+
+  .poi-actions {
+    width: 58px;
+    height: 58px;
+  }
+
+  .poi--apartment .poi-btn {
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+  }
+
+  .immersive-back {
+    top: max(12px, env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    padding: 11px 16px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+
+  .light-slider {
+    height: 28px;
+  }
+
+  .light-slider::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  .light-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  #mood-bar {
+    top: auto;
+    bottom: calc(var(--dock-chrome-h) + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    transform: none;
+    width: auto;
+  }
+
+  #mood-bar.light-slider-bar {
+    min-width: 0;
+    max-width: none;
+    padding: 9px 14px;
+  }
+
+  .poi-card {
+    left: 12px;
+    width: min(300px, calc(100vw - 24px));
+    bottom: calc(var(--dock-chrome-h) + 10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(#mood-bar.show) .poi-card {
+    bottom: calc(var(--dock-chrome-h) + var(--mood-chrome-h) + 14px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(#mood-bar.show) .apt-filter-dock.is-visible {
+    bottom: calc(var(--dock-chrome-h) + var(--mood-chrome-h) + 8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.dock-menu-collapsed:has(#mood-bar.show) .apt-filter-dock.is-visible {
+    bottom: calc(68px + var(--mood-chrome-h) + env(safe-area-inset-bottom, 0px));
+  }
+
+  #pano-modal-box {
+    inset: 2%;
+    border-radius: 12px;
+  }
+
+  #pano-modal-box > button[data-pano-close] {
+    width: 44px;
+    height: 44px;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+  }
+
+  #transition-loading {
+    font-size: 11px;
+    padding: 0 16px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  :root {
+    --dock-chrome-h: 76px;
+  }
+
+  #track {
+    left: max(8px, env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    width: min(380px, 52vw);
+  }
+
+  #mood-bar {
+    left: auto;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    width: min(320px, 46vw);
+  }
+
+  body:has(#mood-bar.show) .poi-card {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-width: min(280px, 42vw);
+  }
+
+  .apt-filter-dock.is-visible {
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    width: min(240px, 38vw);
+  }
+}
+
+.mobile-cellular-hint {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%) translateY(-130%);
+  z-index: 60;
+  max-width: min(360px, calc(100vw - 24px));
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+  color: rgba(244, 240, 232, 0.92);
+  background: rgba(12, 12, 10, 0.9);
+  border: 1px solid rgba(200, 169, 110, 0.35);
+  backdrop-filter: blur(16px);
+  opacity: 0;
+  transition:
+    transform 0.4s var(--ease),
+    opacity 0.4s var(--ease);
+  pointer-events: none;
+}
+
+.mobile-cellular-hint.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
