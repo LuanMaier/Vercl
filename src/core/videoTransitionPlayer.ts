@@ -1,6 +1,7 @@
 import { isMobileViewport, resolveVideoSrcCandidates } from './paths'
-import { drawImageCover, drawImageFit } from './motionBlur'
+import { drawImageFit } from './motionBlur'
 import type { ImageFitMode } from './coverCoords'
+import { getDefaultCanvasFit } from './coverCoords'
 import type { VideoTransition } from './types'
 
 export type VideoPlayOptions = {
@@ -602,7 +603,7 @@ export class VideoTransitionPlayer {
     if (!v.videoWidth) return
     const ctx = this.canvas.getContext('2d')
     if (!ctx) return
-    drawImageCover(ctx, v, window.innerWidth, window.innerHeight)
+    drawImageFit(ctx, v, window.innerWidth, window.innerHeight, 0, getDefaultCanvasFit())
   }
 
   prefetch(config: VideoTransition) {

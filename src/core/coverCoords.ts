@@ -1,9 +1,16 @@
 /** Mapeamento de pins com a mesma lógica object-fit: cover / contain. */
 
+import { isMobileViewport } from './paths'
+
 export type ImageFitMode = 'cover' | 'contain'
 
 /** Vista idle — contain nítido + fundo cover desfocado (sem barras pretas nem zoom agressivo). */
 export const STILL_VIEW_IMAGE_FIT: ImageFitMode = 'contain'
+
+/** Fit padrão no canvas / <video> — mobile encaixa (contain); desktop transições usam cover. */
+export function getDefaultCanvasFit(): ImageFitMode {
+  return isMobileViewport() ? STILL_VIEW_IMAGE_FIT : 'cover'
+}
 
 export type CoverRect = {
   dx: number

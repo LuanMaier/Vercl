@@ -31,7 +31,7 @@ import { getFacadeApartmentId } from '../config/apartmentOutlinesConfig'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
 import { findPoiNavLink, resolvePoiTransitionForEdge } from './poiNavigation'
 import { drawImageFit, motionBlurAmount } from './motionBlur'
-import { STILL_VIEW_IMAGE_FIT, type ImageFitMode } from './coverCoords'
+import { STILL_VIEW_IMAGE_FIT, type ImageFitMode, getDefaultCanvasFit } from './coverCoords'
 import { interiorFade } from './interiorFade'
 import { isPanoramaView, panoramaFade } from './panoramaFade'
 import { stageFade } from './stageFade'
@@ -139,11 +139,11 @@ export class ExplorerEngine {
   drawFrame(
     img: HTMLImageElement | HTMLVideoElement | ImageBitmap,
     blurPx = 0,
-    fit: ImageFitMode = 'cover',
+    fit?: ImageFitMode,
   ) {
     const w = window.innerWidth
     const h = window.innerHeight
-    drawImageFit(this.ctx, img, w, h, blurPx, fit)
+    drawImageFit(this.ctx, img, w, h, blurPx, fit ?? getDefaultCanvasFit())
   }
 
   /** Frame de vídeo no canvas (slider de sol). */

@@ -101,6 +101,12 @@ body {
   opacity: 1;
 }
 
+/* Mobile: vídeo inteiro na tela (sem zoom/corte) — igual ao canvas contain */
+body.is-mobile .transition-video {
+  object-fit: contain;
+  background: #050503;
+}
+
 /* Book — esmaecimento em #stage; vídeo aparece quando o fade in termina */
 body.interiors-active .transition-video {
   transition: none;
