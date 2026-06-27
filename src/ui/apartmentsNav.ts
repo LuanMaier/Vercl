@@ -3,6 +3,7 @@ import { crmStatusClass, getCrmStatusForUnit } from '../config/crmConfig'
 import type { ExplorerEngine } from '../core/engine'
 import { collapseDockMenu } from './dockCollapse'
 import { observeDockTabsLayout, syncDockTabsLayout } from './dockLayout'
+import { bindTap } from './bindTap'
 
 let unsubEngine: (() => void) | null = null
 let teardownApartmentLayout: (() => void) | null = null
@@ -64,15 +65,7 @@ export function mountApartmentsNav(engine: ExplorerEngine, track: HTMLElement) {
         collapseDockMenu()
         void engine.selectApartment(item.id)
       }
-      el.addEventListener('click', go)
-      el.addEventListener(
-        'touchstart',
-        (e) => {
-          if (e.cancelable) e.preventDefault()
-          go()
-        },
-        { passive: false },
-      )
+      bindTap(el, go)
       pts.appendChild(el)
     })
     syncDockTabsLayout(pts)

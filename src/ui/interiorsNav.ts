@@ -1,6 +1,7 @@
 import { getInteriorItems } from '../config/interiorsConfig'
 import type { ExplorerEngine } from '../core/engine'
 import { observeDockTabsLayout, syncDockTabsLayout } from './dockLayout'
+import { bindTap } from './bindTap'
 
 let unsubEngine: (() => void) | null = null
 let teardownInteriorLayout: (() => void) | null = null
@@ -44,15 +45,7 @@ export function mountInteriorsNav(engine: ExplorerEngine, track: HTMLElement) {
         <span class="dock-tab-tag">${item.tag}</span>
       `
       const go = () => void engine.playInterior(item.id)
-      el.addEventListener('click', go)
-      el.addEventListener(
-        'touchstart',
-        (e) => {
-          if (e.cancelable) e.preventDefault()
-          go()
-        },
-        { passive: false },
-      )
+      bindTap(el, go)
       pts.appendChild(el)
     })
     syncDockTabsLayout(pts)

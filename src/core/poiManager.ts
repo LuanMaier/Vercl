@@ -19,6 +19,7 @@ import {
   resolveViewStillPosterSrc,
 } from './panoramaPinLayout'
 import { collapseDockMenu } from '../ui/dockCollapse'
+import { bindTap } from '../ui/bindTap'
 import type { ExplorerEngine } from './engine'
 import type { JumpOptions, PoiDefinition } from './types'
 
@@ -442,20 +443,18 @@ export class PoiManager {
   }
 
   private bindPoiActivate(marker: HTMLElement, poi: PoiDefinition, activate: (e: Event) => void) {
-    const btn = marker.querySelector('.poi-btn')!
+    const btn = marker.querySelector('.poi-btn') as HTMLElement
     const warmPrefetch = () => {
       const videoRef = poi.transitionVideo ?? getProjectPoiVideoPath(poi.id)
       if (videoRef) this.engine.prefetchPoiMedia(videoRef)
     }
-    btn.addEventListener('click', activate)
-    btn.addEventListener(
-      'touchstart',
+    bindTap(
+      btn,
       (e) => {
         warmPrefetch()
-        if (e.cancelable) e.preventDefault()
         activate(e)
       },
-      { passive: false },
+      { stopPropagation: true },
     )
   }
 

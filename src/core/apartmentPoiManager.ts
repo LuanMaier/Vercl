@@ -8,6 +8,7 @@ import { outlineCentroid } from './apartmentOutlineGeometry'
 import { resolveApartmentFaceDimensions } from './apartmentFaceMedia'
 import { getStillViewFitRect } from './coverCoords'
 import { collapseDockMenu } from '../ui/dockCollapse'
+import { bindTap } from '../ui/bindTap'
 import type { ExplorerEngine } from './engine'
 import type { PoiDefinition } from './types'
 
@@ -211,16 +212,8 @@ export class ApartmentPoiManager {
       e.stopPropagation()
       void this.onPoiClick(poi)
     }
-    const btn = marker.querySelector('.poi-btn')!
-    btn.addEventListener('click', activate)
-    btn.addEventListener(
-      'touchstart',
-      (e) => {
-        if (e.cancelable) e.preventDefault()
-        activate(e)
-      },
-      { passive: false },
-    )
+    const btn = marker.querySelector('.poi-btn') as HTMLElement
+    bindTap(btn, activate, { stopPropagation: true })
     document.body.appendChild(marker)
     this.clearCrmFromPin(marker)
   }

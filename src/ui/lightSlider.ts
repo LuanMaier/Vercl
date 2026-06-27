@@ -4,13 +4,15 @@ import {
   getProjectSolarFrameInitial,
 } from '../config/projectMedia'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
-import { resolveMediaPath } from '../core/paths'
+import { resolveMediaPath, isMobileViewport } from '../core/paths'
 import { STILL_VIEW_IMAGE_FIT } from '../core/coverCoords'
 import type { ExplorerEngine } from '../core/engine'
 import type { VideoTransitionPlayer } from '../core/videoTransitionPlayer'
 
 /** Frames em memória — scrub instantâneo sem seek no vídeo. */
-const SLIDER_FRAME_COUNT = 40
+function sliderFrameCount() {
+  return isMobileViewport() ? 24 : 40
+}
 const SLIDER_CACHE_MAX_WIDTH = 960
 
 function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
@@ -192,7 +194,7 @@ export function mountLightSlider(
     disposeFrameCache(frameCache)
     frameCache = []
 
-    const count = SLIDER_FRAME_COUNT
+    const count = sliderFrameCount()
     const duration = video.duration
 
     for (let i = 0; i < count; i++) {
@@ -282,6 +284,7 @@ export function mountLightSlider(
   }
 
   const beginScrub = () => {
+    if (range.disabled) return
     scrubbing = true
     if (video.preload !== 'auto') {
       video.preload = 'auto'
@@ -289,13 +292,35 @@ export function mountLightSlider(
     }
   }
 
-  range.addEventListener('pointerdown', beginScrub)
-  range.addEventListener('touchstart', beginScrub, { passive: true })
+  const onPointerDown = (e: PointerEvent) => {
+    if (range.disabled) return
+    beginScrub()
+    try {
+      range.setPointerCapture(e.pointerId)
+    } catch {
+      /* ok */
+    }
+  }
+
+  const onPointerUp = (e: PointerEvent) => {
+    try {
+      range.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ok */
+    }
+    if (!scrubbing) return
+    applyProgress(progressFromRange())
+    endScrub()
+  }
+
+  range.addEventListener('pointerdown', onPointerDown)
   range.addEventListener('input', onScrubInput)
-  range.addEventListener('change', endScrub)
-  range.addEventListener('pointerup', endScrub)
-  range.addEventListener('pointercancel', endScrub)
-  range.addEventListener('touchend', endScrub)
+  range.addEventListener('change', () => {
+    if (!range.disabled) applyProgress(progressFromRange())
+    endScrub()
+  })
+  range.addEventListener('pointerup', onPointerUp)
+  range.addEventListener('pointercancel', onPointerUp)
 
   async function syncFromEngine() {
     const ref = getProjectLightSliderVideoPath(engine.currentView)

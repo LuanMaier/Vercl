@@ -12,6 +12,7 @@
     "crm:sync": "node scripts/sync-crm.mjs",
     "restore:create": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-restore-point.ps1",
     "test:highlights": "npx --yes tsx scripts/test-highlight-coords.mjs",
+    "media:mobile": "node scripts/generate-mobile-videos.mjs",
     "test": "npm run test:highlights && npm run build"
   },
   "devDependencies": {

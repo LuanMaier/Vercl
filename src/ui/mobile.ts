@@ -49,5 +49,6 @@ export async function initMobileExperience(): Promise<void> {
 
   await probeMobileAssets()
   syncViewportClasses()
+  window.dispatchEvent(new Event('resize'))
   mountCellularHint()
 }

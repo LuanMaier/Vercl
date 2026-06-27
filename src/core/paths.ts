@@ -1,7 +1,7 @@
 import type { VideoTransition } from './types'
 
-let mobileSeqArchAvailable: boolean | null = null
-let mobileMediaRootAvailable: boolean | null = null
+let mobileSeqArchAvailable = false
+let mobileMediaRootAvailable = false
 
 export function isMobileViewport(): boolean {
   return window.matchMedia('(hover: none)').matches || window.innerWidth < 768
@@ -20,36 +20,32 @@ export function isCellularConnection(): boolean {
 }
 
 export function mobileSeqArchEnabled(): boolean {
-  return mobileSeqArchAvailable !== false
+  return mobileSeqArchAvailable
 }
 
 export function mobileMediaRootEnabled(): boolean {
-  return mobileMediaRootAvailable !== false
+  return mobileMediaRootAvailable
 }
 
-/** Sonda assets mobile no boot — evita 404 quando pastas ainda não existem. */
+/** Sonda assets mobile no boot — só ativa pastas que existem de verdade. */
 export async function probeMobileAssets(): Promise<void> {
-  if (!isMobileViewport()) return
+  if (!isMobileViewport()) {
+    mobileSeqArchAvailable = false
+    mobileMediaRootAvailable = false
+    return
+  }
 
-  const checks = await Promise.all([
-    fetch('/images/seq_arch_m/arch_00.jpg', { method: 'HEAD' })
-      .then((r) => r.ok)
-      .catch(() => false),
-    fetch('/media/mobile/.gitkeep', { method: 'HEAD' })
-      .then((r) => r.ok)
-      .catch(() =>
-        fetch('/media/mobile/', { method: 'HEAD' })
-          .then((r) => r.ok)
-          .catch(() => false),
-      ),
-  ])
+  mobileSeqArchAvailable = await fetch('/images/seq_arch_m/arch_00.jpg', { method: 'HEAD' })
+    .then((r) => r.ok)
+    .catch(() => false)
 
-  mobileSeqArchAvailable = checks[0]
-  mobileMediaRootAvailable = checks[1]
+  mobileMediaRootAvailable = await fetch('/media/mobile/.ready', { method: 'HEAD' })
+    .then((r) => r.ok)
+    .catch(() => false)
 }
 
 export function toMobileVideoPath(path: string): string {
-  if (!isMobileViewport() || mobileMediaRootAvailable === false) return path
+  if (!isMobileViewport() || !mobileMediaRootAvailable) return path
   if (path.includes('/media/mobile/')) return path
   if (!/^\/media\//.test(path)) return path
   if (!/\.(mp4|webm|mov)(\?|#|$)/i.test(path)) return path
@@ -64,7 +60,7 @@ export function resolveMediaPath(path: string): string {
   if (!isMobileViewport()) return path
 
   let out = path
-  if (mobileSeqArchAvailable !== false && path.includes('/images/seq_arch/')) {
+  if (mobileSeqArchAvailable && path.includes('/images/seq_arch/')) {
     out = path.replace('/images/seq_arch/', '/images/seq_arch_m/')
   }
   return toMobileVideoPath(out)

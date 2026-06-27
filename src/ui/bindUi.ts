@@ -7,6 +7,7 @@ import type { ApartmentPoiManager } from '../core/apartmentPoiManager'
 import type { ExplorerEngine } from '../core/engine'
 import type { PoiManager } from '../core/poiManager'
 import { syncDockTabsLayout } from './dockLayout'
+import { bindTap } from './bindTap'
 
 let mainDockTabsEl: HTMLElement | null = null
 
@@ -48,15 +49,7 @@ export function bindTrack(
       void engine.closeApartmentsPanel()
       void poiManager.navigateToView(idx)
     }
-    el.addEventListener('click', go)
-    el.addEventListener(
-      'touchstart',
-      (e) => {
-        if (e.cancelable) e.preventDefault()
-        go()
-      },
-      { passive: false },
-    )
+    bindTap(el, go)
     wrap.appendChild(el)
   })
   syncDockTabsLayout(wrap)
