@@ -2,6 +2,7 @@ import { getAllPinOutlines } from '../config/apartmentOutlinesConfig'
 import { getPoisForApartment } from '../config/apartmentPoiConfig'
 import { crmStatusClass, getCrmStatusForUnit } from '../config/crmConfig'
 import { unitLabelMatchesApartmentFilter } from '../config/crmFilterConfig'
+import { getStageMetrics } from './stageMetrics'
 import { resolveApartmentFaceDimensions } from './apartmentFaceMedia'
 import { outlineToSvgPointsAttr } from './apartmentOutlineGeometry'
 import type { ExplorerEngine } from './engine'
@@ -139,8 +140,7 @@ export class ApartmentOutlineManager {
       return
     }
 
-    const viewW = window.innerWidth
-    const viewH = window.innerHeight
+    const { w: viewW, h: viewH } = getStageMetrics()
     const outlines = getAllPinOutlines()
     const pins = getPoisForApartment(activeId)
     const parts: string[] = []

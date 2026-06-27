@@ -275,6 +275,48 @@ body.apartments-active .poi:not(.poi--apartment) {
   pointer-events: none;
 }
 
+.poi--apartment.is-face-revealed {
+  z-index: 17;
+}
+
+.poi--apartment.is-face-revealed .poi-name {
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.05;
+  max-width: 44px;
+  text-align: center;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.95),
+    0 0 8px rgba(0, 0, 0, 0.65);
+}
+
+.poi--apartment.is-face-revealed .poi-ring,
+.poi--apartment.is-face-revealed .poi-glow,
+.poi--apartment.is-face-revealed .poi-stem {
+  display: none;
+}
+
+.poi--apartment.is-face-revealed .poi-btn-core::before,
+.poi--apartment.is-face-revealed .poi-btn-core::after {
+  opacity: 0;
+}
+
+.poi--apartment.is-face-revealed .poi-btn-core {
+  background: transparent;
+  box-shadow: none;
+}
+
+.poi--apartment.is-face-revealed .poi-btn {
+  width: 34px;
+  height: 26px;
+  margin: -13px 0 0 -17px;
+}
+
 .poi--apartment .poi-ring {
   width: 10px;
   height: 10px;
@@ -1514,8 +1556,12 @@ body.is-playing .interior-book {
     opacity: 1;
   }
 
-  .poi--apartment:not(.hidden) {
+  .poi--apartment:not(.hidden):not(.is-face-revealed) {
     transform: translate(-50%, -100%);
+  }
+
+  .poi--apartment.is-face-revealed {
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -2465,14 +2511,16 @@ body.is-mobile .poi:not(.poi--apartment) .poi-btn {
   margin: -35px 0 0 -35px;
 }
 
-body.is-mobile .poi--apartment .poi-actions {
-  transform: scale(0.5);
-  transform-origin: center center;
+body.is-mobile .poi--apartment.is-face-revealed .poi-name {
+  font-size: 7px;
+  max-width: 38px;
 }
 
-body.is-mobile .poi--apartment .poi-btn {
-  padding: 20px;
-  margin: -30px 0 0 -30px;
+body.is-mobile .poi--apartment.is-face-revealed .poi-btn {
+  width: 40px;
+  height: 30px;
+  margin: -15px 0 0 -20px;
+  padding: 0;
 }
 
 body.is-mobile .poi-name {
@@ -2530,16 +2578,16 @@ body.is-mobile .dock-panel {
   padding-right: 12px;
 }
 
-/* Filtro CRM — compacto, canto inferior esquerdo (só mobile) */
+/* Filtro CRM — compacto; posição vertical via JS (abaixo da imagem) */
 body.is-mobile .apt-filter-dock {
   right: auto;
   left: max(12px, env(safe-area-inset-left, 0px));
   width: min(236px, calc(100vw - 120px));
-  bottom: calc(142px + env(safe-area-inset-bottom, 0px));
+  bottom: auto;
 }
 
 body.is-mobile.dock-menu-collapsed .apt-filter-dock.is-visible {
-  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  bottom: auto;
 }
 
 body.is-mobile .apt-filter-dock-panel {

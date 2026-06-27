@@ -18,6 +18,7 @@ import {
 } from '../config/crmFilterConfig'
 import { isMobileViewport } from '../core/paths'
 import type { ExplorerEngine } from '../core/engine'
+import { layoutMobileApartmentFilterDock } from './apartmentFilterLayout'
 
 const STATUS_OPTIONS: CrmUnitStatus[] = ['available', 'reserved', 'sold']
 
@@ -199,6 +200,13 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     badge.hidden = count === 0
     badge.textContent = String(count)
     dock!.classList.toggle('has-filters', isApartmentFilterActive())
+    if (show) {
+      requestAnimationFrame(() => {
+        void layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
+      })
+    } else {
+      void layoutMobileApartmentFilterDock(dock!, null)
+    }
   }
 
   paintBedroomRange = setupDualRange(bedroomRangeEl, {
@@ -246,7 +254,12 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
   })
 
   const unsub = engine.subscribe(() => updateVisibility())
-  const onViewportChange = () => renderStatus()
+  const onViewportChange = () => {
+    renderStatus()
+    if (dock!.classList.contains('is-visible')) {
+      void layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
+    }
+  }
   window.addEventListener('resize', onViewportChange)
   syncControls()
   updateVisibility()

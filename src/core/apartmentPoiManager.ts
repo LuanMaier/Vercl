@@ -7,6 +7,7 @@ import { pinViewportPosition, migrateAptHighlightToCenterAnchor } from './apartm
 import { outlineCentroid } from './apartmentOutlineGeometry'
 import { resolveApartmentFaceDimensions } from './apartmentFaceMedia'
 import { getStillViewFitRect } from './coverCoords'
+import { getStageMetrics } from './stageMetrics'
 import { collapseDockMenu } from '../ui/dockCollapse'
 import { bindTap } from '../ui/bindTap'
 import type { ExplorerEngine } from './engine'
@@ -150,8 +151,7 @@ export class ApartmentPoiManager {
     if (!pins.length) return
     const metrics = await this.getFaceImageMetrics(aptId)
     if (!metrics) return
-    const viewW = window.innerWidth
-    const viewH = window.innerHeight
+    const { w: viewW, h: viewH } = getStageMetrics()
     for (const poi of pins) {
       this.applyPinPosition(poi, viewW, viewH, metrics.w, metrics.h)
     }
