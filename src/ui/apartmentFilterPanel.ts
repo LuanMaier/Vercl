@@ -18,7 +18,7 @@ import {
 } from '../config/crmFilterConfig'
 import { isMobileViewport } from '../core/paths'
 import type { ExplorerEngine } from '../core/engine'
-import { layoutMobileApartmentFilterDock } from './apartmentFilterLayout'
+import { layoutMobileApartmentFilterDock, watchMobileApartmentFilterLayout } from './apartmentFilterLayout'
 
 const STATUS_OPTIONS: CrmUnitStatus[] = ['available', 'reserved', 'sold']
 
@@ -201,11 +201,9 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     badge.textContent = String(count)
     dock!.classList.toggle('has-filters', isApartmentFilterActive())
     if (show) {
-      requestAnimationFrame(() => {
-        void layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
-      })
+      layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
     } else {
-      void layoutMobileApartmentFilterDock(dock!, null)
+      layoutMobileApartmentFilterDock(dock!, null)
     }
   }
 
@@ -256,16 +254,19 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
   const unsub = engine.subscribe(() => updateVisibility())
   const onViewportChange = () => {
     renderStatus()
-    if (dock!.classList.contains('is-visible')) {
-      void layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
+    const apt = engine.activeApartmentId
+    if (dock!.classList.contains('is-visible') && apt) {
+      layoutMobileApartmentFilterDock(dock!, apt)
     }
   }
+  const unwatchLayout = watchMobileApartmentFilterLayout(dock!, () => engine.activeApartmentId)
   window.addEventListener('resize', onViewportChange)
   syncControls()
   updateVisibility()
 
   const cleanup = () => {
     unsub()
+    unwatchLayout()
     window.removeEventListener('resize', onViewportChange)
     updateVisibility()
   }
