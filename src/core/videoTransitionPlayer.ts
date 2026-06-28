@@ -90,18 +90,20 @@ export class VideoTransitionPlayer {
     return null
   }
 
-  stopLoop() {
+  stopLoop(opts?: { keepCanvasHidden?: boolean }) {
     if (!this.looping) return
     const v = this.active
     this.stopCanvasLoopDraw()
-    if (v.readyState >= 2 && v.videoWidth > 0) {
+    if (!opts?.keepCanvasHidden && v.readyState >= 2 && v.videoWidth > 0) {
       this.snapVideoFrameToCanvas(v)
     }
     this.looping = false
     this.active.loop = false
     this.active.pause()
     this.active.classList.remove('visible')
-    this.canvas.classList.remove('hidden')
+    if (!opts?.keepCanvasHidden) {
+      this.canvas.classList.remove('hidden')
+    }
     const loopSettle = this.loopSettle
     this.loopSettle = null
     loopSettle?.(false)
@@ -121,7 +123,7 @@ export class VideoTransitionPlayer {
     const loopSettle = this.loopSettle
     this.settle = null
     this.loopSettle = null
-    this.stopLoop()
+    this.stopLoop({ keepCanvasHidden: opts?.keepCanvasHidden })
     this.playing = false
     this.transitionReverse = false
     this.endOnStillPoster = false
@@ -185,7 +187,7 @@ export class VideoTransitionPlayer {
   /** Loop desenhado no canvas — mesmo fit das imagens (contain + fundo). */
   playCanvasLoop(config: VideoTransition, fit: ImageFitMode = 'contain'): Promise<boolean> {
     return new Promise((resolve) => {
-      this.cancel()
+      this.cancel({ keepCanvasHidden: true })
       this.looping = true
       this.loopFit = fit
       this.loopSettle = resolve
@@ -193,11 +195,12 @@ export class VideoTransitionPlayer {
       const v = this.active
       v.loop = true
       const ctx = this.canvas.getContext('2d')
+      let firstFramePainted = false
 
       const bail = window.setTimeout(() => {
         if (!this.looping) return
         this.loopSettle = null
-        this.stopLoop()
+        this.stopLoop({ keepCanvasHidden: true })
         resolve(false)
       }, isMobileViewport() ? 35000 : 25000)
 
@@ -205,15 +208,20 @@ export class VideoTransitionPlayer {
         clearTimeout(bail)
         if (this.loopSettle !== resolve) return
         this.loopSettle = null
-        if (!ok) this.stopLoop()
+        if (!ok) this.stopLoop({ keepCanvasHidden: true })
         resolve(ok)
       }
 
       const draw = () => {
         if (!this.looping) return
-        if (ctx && v.readyState >= 2) {
+        if (ctx && v.readyState >= 2 && v.videoWidth > 0) {
           const layout = syncStageCanvas(this.canvas, ctx)
           drawImageFit(ctx, v, layout.w, layout.h, 0, this.loopFit)
+          this.canvas.classList.remove('hidden')
+          if (!firstFramePainted) {
+            firstFramePainted = true
+            finish(true)
+          }
         }
         this.loopRaf = requestAnimationFrame(draw)
       }
@@ -224,9 +232,7 @@ export class VideoTransitionPlayer {
           () => {
             v.classList.remove('visible')
             this.inactive.classList.remove('visible')
-            this.canvas.classList.remove('hidden')
             draw()
-            finish(true)
           },
           () => finish(false),
         )

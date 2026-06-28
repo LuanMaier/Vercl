@@ -582,6 +582,10 @@ export class PoiManager {
     if (jumpOpts?.poiEndImage) {
       void this.engine.preloadPoiEndImage(jumpOpts.poiEndImage)
     }
+    if (isPoiLoopDirect(poi)) {
+      const loopPath = getProjectPoiLoopVideoPath(poi.id)
+      if (loopPath) this.engine.prefetchPoiMedia(loopPath)
+    }
 
     if (targetView !== this.engine.currentView) {
       this.pending = { poi, targetView, sourceView }
