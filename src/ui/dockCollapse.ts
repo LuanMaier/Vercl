@@ -13,17 +13,28 @@ function syncDockCollapseUi() {
   revealBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true')
 }
 
+/** Alvos da cena — não recolher o dock antes do handler do pin/controle. */
+function isSceneInteractiveTarget(target: Node): boolean {
+  if (!(target instanceof Element)) return false
+  return Boolean(
+    target.closest(
+      '.poi, .apt-outline, #apt-outline-layer, .apt-filter-trigger, .apt-filter-dock, .light-slider, #mood-bar, .immersive-back',
+    ),
+  )
+}
+
 function installOutsideDismiss() {
   if (outsideDismissReady) return
   outsideDismissReady = true
   document.addEventListener(
-    'pointerdown',
+    'click',
     (e) => {
       if (!dockExpanded) return
       const track = trackEl
       if (!track) return
       const target = e.target as Node
       if (track.contains(target)) return
+      if (isSceneInteractiveTarget(target)) return
       collapseDockMenu()
     },
     true,

@@ -112,7 +112,8 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  opacity: 0;
+  /* 0 quebra decode→canvas no iOS; manter quase invisível */
+  opacity: 0.001;
   pointer-events: none;
   z-index: 0;
 }
@@ -534,6 +535,15 @@ body.is-mobile .apt-outline-layer .apt-outline.crm--sold {
 
 #track.dock.show {
   opacity: 1;
+  /* Container transparente a toques — só botões do painel capturam (pins na cena passam). */
+  pointer-events: none;
+}
+
+#track.dock.show .dock-panel {
+  pointer-events: auto;
+}
+
+#track.dock.show .dock-reveal {
   pointer-events: auto;
 }
 
@@ -2656,6 +2666,14 @@ body.is-mobile .poi:not(.poi--apartment) .poi-btn {
   margin: -35px 0 0 -35px;
 }
 
+body.is-mobile .poi:not(.hidden) {
+  z-index: 22;
+}
+
+body.is-mobile .apt-outline-layer.is-visible {
+  z-index: 21;
+}
+
 body.is-mobile .poi--apartment.is-face-revealed .poi-name {
   font-size: 7px;
   max-width: 38px;
@@ -2666,6 +2684,10 @@ body.is-mobile .poi--apartment.is-face-revealed .poi-btn {
   height: 30px;
   margin: -15px 0 0 -20px;
   padding: 0;
+}
+
+body.is-mobile.apartments-active .poi--apartment:not(.hidden) {
+  z-index: 23;
 }
 
 body.is-mobile .poi-name {

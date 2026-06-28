@@ -13,8 +13,34 @@ import { STILL_VIEW_IMAGE_FIT } from '../core/coverCoords'
 import type { ExplorerEngine } from '../core/engine'
 import type { VideoTransitionPlayer } from '../core/videoTransitionPlayer'
 
-const SLIDER_CACHE_MAX_WIDTH = 960
-const SLIDER_CACHE_FRAME_COUNT = 40
+function sliderCacheSettings() {
+  const mobile = isMobileViewport()
+  return {
+    maxWidth: mobile ? 640 : 960,
+    frameCount: mobile ? 28 : 40,
+    deferCacheUntilScrub: mobile,
+  }
+}
+
+function expandSliderVideoCandidates(ref: string, resolved: string): string[] {
+  const out: string[] = []
+  const add = (src: string) => {
+    if (src && !out.includes(src)) out.push(src)
+  }
+
+  for (const src of resolveVideoSrcCandidates({ type: 'video', src: resolved })) {
+    add(src)
+  }
+  add(resolved)
+  add(ref)
+
+  if (ref.includes('/media/')) {
+    add(ref.replace(/^\/media\//, '/media/mobile/'))
+    add(ref.replace('/media/mobile/', '/media/'))
+  }
+
+  return out
+}
 
 function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
   const duration = video.duration
@@ -33,22 +59,53 @@ function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
       resolve()
     }
     const onSeeked = () => finish()
-    const timer = window.setTimeout(finish, isMobileViewport() ? 100 : 300)
+    const timer = window.setTimeout(finish, isMobileViewport() ? 180 : 300)
 
     video.addEventListener('seeked', onSeeked)
     try {
-      const fastSeek = (video as HTMLVideoElement & { fastSeek?: (t: number) => void }).fastSeek
-      if (typeof fastSeek === 'function') fastSeek.call(video, clamped)
-      else video.currentTime = clamped
+      video.currentTime = clamped
     } catch {
       finish()
     }
   })
 }
 
-async function captureFrameBitmap(video: HTMLVideoElement): Promise<ImageBitmap | null> {
+async function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
+  const rvfc = (
+    video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }
+  ).requestVideoFrameCallback
+  if (typeof rvfc === 'function') {
+    await new Promise<void>((resolve) => {
+      rvfc.call(video, () => resolve())
+    })
+    return
+  }
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
+}
+
+async function primeVideoForScrub(video: HTMLVideoElement): Promise<boolean> {
+  if (!video.duration || !Number.isFinite(video.duration)) return false
+  try {
+    video.muted = true
+    const playPromise = video.play()
+    if (playPromise) await playPromise
+  } catch {
+    /* iOS pode bloquear até haver gesto — tenta seek mesmo assim */
+  }
+  video.pause()
+  await seekToTime(video, 0)
+  await waitForVideoFrame(video)
+  return video.readyState >= 2 && video.videoWidth > 0
+}
+
+async function captureFrameBitmap(
+  video: HTMLVideoElement,
+  maxWidth: number,
+): Promise<ImageBitmap | null> {
   if (!video.videoWidth) return null
-  const scale = Math.min(1, SLIDER_CACHE_MAX_WIDTH / video.videoWidth)
+  const scale = Math.min(1, maxWidth / video.videoWidth)
   const w = Math.max(1, Math.round(video.videoWidth * scale))
   const h = Math.max(1, Math.round(video.videoHeight * scale))
   try {
@@ -77,19 +134,15 @@ function mountSolarVideoElement(): HTMLVideoElement {
   video.setAttribute('aria-hidden', 'true')
   video.tabIndex = -1
   video.className = 'light-slider-source-video'
+  video.preload = 'auto'
 
   const mobile = isMobileViewport()
-  video.preload = mobile ? 'auto' : 'metadata'
-
   if (mobile) {
-    /* iOS não decodifica vídeo fora da viewport / visibility:hidden. */
     const stage = document.getElementById('stage')
     if (stage) {
       stage.appendChild(video)
       return video
     }
-    video.style.cssText =
-      'position:fixed;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;z-index:0;object-fit:contain'
     document.body.appendChild(video)
     return video
   }
@@ -109,7 +162,7 @@ export function mountLightSlider(
   if (!range) return () => {}
 
   const video = mountSolarVideoElement()
-  const useLiveScrub = isMobileViewport()
+  const cacheSettings = sliderCacheSettings()
 
   let loadedView = -1
   let loadedSrc = ''
@@ -119,7 +172,10 @@ export function mountLightSlider(
   let scrubbing = false
   let frameCache: ImageBitmap[] = []
   let cacheReady = false
+  let cacheDeferred = false
   let videoReady = false
+  let videoPrimed = false
+  let primePromise: Promise<boolean> | null = null
   let frameInitial: HTMLImageElement | null = null
   let frameFinal: HTMLImageElement | null = null
   let endpointGen = 0
@@ -176,6 +232,18 @@ export function mountLightSlider(
     )
   }
 
+  async function ensureVideoPrimed(): Promise<boolean> {
+    if (videoPrimed && video.videoWidth > 0) return true
+    if (!isSliderVideoReady()) return false
+    if (!primePromise) {
+      primePromise = primeVideoForScrub(video).finally(() => {
+        primePromise = null
+      })
+    }
+    videoPrimed = await primePromise
+    return videoPrimed
+  }
+
   function presentCachedProgress(progress: number) {
     if (!frameCache.length) return false
     const idx = Math.min(
@@ -188,12 +256,19 @@ export function mountLightSlider(
   }
 
   async function presentVideoProgress(progress: number) {
-    if (!isSliderVideoReady()) return
+    if (!isSliderVideoReady()) return false
+    if (!(await ensureVideoPrimed())) return false
+
     const token = ++scrubToken
     await seekToTime(video, progress * video.duration)
-    if (token !== scrubToken) return
+    if (token !== scrubToken) return false
+    await waitForVideoFrame(video)
+    if (token !== scrubToken) return false
+    if (!video.videoWidth) return false
+
     hideTransitionVideos()
     engine.presentVideoFrame(video)
+    return true
   }
 
   function showProgress(progress: number) {
@@ -217,14 +292,8 @@ export function mountLightSlider(
       return
     }
 
-    if (useLiveScrub) {
-      void presentVideoProgress(p)
-      return
-    }
-
-    if (!presentCachedProgress(p)) {
-      void presentVideoProgress(p)
-    }
+    if (presentCachedProgress(p)) return
+    void presentVideoProgress(p)
   }
 
   function maybeRestoreHeldFrame() {
@@ -235,35 +304,43 @@ export function mountLightSlider(
     ) {
       return
     }
-    const ready = useLiveScrub ? isSliderVideoReady() : cacheReady
+    const ready = cacheReady || (videoPrimed && isSliderVideoReady())
     if (!ready) return
     showProgress(engine.lightSliderProgress)
   }
 
   async function buildFrameCache(gen: number) {
     if (!video.duration || !Number.isFinite(video.duration)) return
+    if (!(await ensureVideoPrimed())) return
 
     moodBar.classList.add('light-slider--loading')
     cacheReady = false
     disposeFrameCache(frameCache)
     frameCache = []
 
-    const count = SLIDER_CACHE_FRAME_COUNT
+    const count = cacheSettings.frameCount
     const duration = video.duration
 
     for (let i = 0; i < count; i++) {
       if (gen !== cacheGen) return
       const t = count <= 1 ? 0 : (i / (count - 1)) * Math.max(0, duration - 0.001)
       await seekToTime(video, t)
-      const bitmap = await captureFrameBitmap(video)
+      await waitForVideoFrame(video)
+      const bitmap = await captureFrameBitmap(video, cacheSettings.maxWidth)
       if (gen !== cacheGen) return
       if (bitmap) frameCache.push(bitmap)
     }
 
     if (gen !== cacheGen) return
     cacheReady = frameCache.length > 0
+    cacheDeferred = false
     moodBar.classList.remove('light-slider--loading')
     maybeRestoreHeldFrame()
+  }
+
+  function scheduleFrameCacheBuild() {
+    const cacheRun = ++cacheGen
+    void buildFrameCache(cacheRun)
   }
 
   function loadVideoFromSrc(src: string, gen: number): Promise<boolean> {
@@ -300,25 +377,26 @@ export function mountLightSlider(
       loadedView = -1
       loadedSrc = ''
       videoReady = false
+      videoPrimed = false
       cacheGen++
       disposeFrameCache(frameCache)
       frameCache = []
       cacheReady = false
+      cacheDeferred = false
       moodBar.classList.remove('light-slider--loading')
       return false
     }
 
     const resolved = (await resolveMediaSrc(ref)) ?? resolveMediaPath(ref)
-    const candidates = resolveVideoSrcCandidates({ type: 'video', src: resolved })
+    const candidates = expandSliderVideoCandidates(ref, resolved)
 
     if (
       loadedView === viewIndex &&
       candidates.includes(loadedSrc) &&
       isSliderVideoReady()
     ) {
-      if (!useLiveScrub && !cacheReady) {
-        const cacheRun = ++cacheGen
-        void buildFrameCache(cacheRun)
+      if (!cacheReady && !cacheDeferred) {
+        scheduleFrameCacheBuild()
       } else {
         maybeRestoreHeldFrame()
       }
@@ -330,7 +408,9 @@ export function mountLightSlider(
     loadedView = viewIndex
     loadedSrc = ''
     videoReady = false
+    videoPrimed = false
     cacheReady = false
+    cacheDeferred = false
     disposeFrameCache(frameCache)
     frameCache = []
 
@@ -352,14 +432,14 @@ export function mountLightSlider(
 
     videoReady = true
 
-    if (useLiveScrub) {
+    if (cacheSettings.deferCacheUntilScrub) {
+      cacheDeferred = true
       moodBar.classList.remove('light-slider--loading')
       maybeRestoreHeldFrame()
       return true
     }
 
-    const cacheRun = ++cacheGen
-    void buildFrameCache(cacheRun)
+    scheduleFrameCacheBuild()
     return true
   }
 
@@ -387,6 +467,15 @@ export function mountLightSlider(
       video.preload = 'auto'
       if (loadedSrc && video.readyState < 2) video.load()
     }
+    void (async () => {
+      if (!isSliderVideoReady()) return
+      const primed = await ensureVideoPrimed()
+      if (!primed) return
+      if (cacheDeferred || (!cacheReady && !moodBar.classList.contains('light-slider--loading'))) {
+        scheduleFrameCacheBuild()
+      }
+      if (scrubbing) showProgress(progressFromRange())
+    })()
   }
 
   const onPointerDown = (e: PointerEvent) => {
