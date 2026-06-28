@@ -2731,6 +2731,10 @@ body.is-mobile .apt-filter-trigger {
   padding: 0 12px;
   font-size: 11px;
   gap: 6px;
+  transform: none;
+  transition:
+    border-color 0.25s var(--ease),
+    background 0.25s var(--ease);
 }
 
 body.is-mobile .apt-filter-trigger.is-visible:not(.is-layout-ready) {
@@ -2747,10 +2751,20 @@ body.is-mobile .apt-filter-dock {
   padding-right: max(10px, env(safe-area-inset-right, 0px));
   box-sizing: border-box;
   -webkit-overflow-scrolling: touch;
+  transform: none;
+  opacity: 1;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+}
+
+body.is-mobile .apt-filter-dock.is-open {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 body.is-mobile .apt-filter-dock.is-open:not(.is-layout-ready) {
-  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 

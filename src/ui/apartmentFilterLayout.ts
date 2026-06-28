@@ -43,6 +43,15 @@ function getStageImageBottom(dims: ApartmentFaceDimensions): number | null {
   return stageRect.top + cover.dy + cover.dh
 }
 
+function clearMobileTriggerStyles(trigger: HTMLElement) {
+  cancelAnimationFrame(triggerLayoutRaf)
+  triggerLayoutRaf = 0
+  trigger.style.top = ''
+  trigger.style.bottom = ''
+  trigger.style.left = ''
+  trigger.classList.remove('is-layout-ready')
+}
+
 function clearMobileDockStyles(dock: HTMLElement) {
   cancelAnimationFrame(layoutRaf)
   layoutRaf = 0
@@ -53,13 +62,19 @@ function clearMobileDockStyles(dock: HTMLElement) {
   dock.classList.remove('is-layout-ready')
 }
 
-function clearMobileTriggerStyles(trigger: HTMLElement) {
-  cancelAnimationFrame(triggerLayoutRaf)
-  triggerLayoutRaf = 0
-  trigger.style.top = ''
-  trigger.style.bottom = ''
-  trigger.style.left = ''
-  trigger.classList.remove('is-layout-ready')
+function applyMobileTriggerLayout(trigger: HTMLElement, dims: ApartmentFaceDimensions): boolean {
+  const stage = document.getElementById('stage')
+  if (!stage) return false
+
+  const stageRect = stage.getBoundingClientRect()
+  const imageBottom = getStageImageBottom(dims)
+  if (imageBottom == null) return false
+
+  trigger.style.top = `${Math.round(imageBottom + 8)}px`
+  trigger.style.bottom = 'auto'
+  trigger.style.left = `${Math.round(stageRect.left + Math.max(10, 0))}px`
+  trigger.classList.add('is-layout-ready')
+  return true
 }
 
 function applyMobileDockLayout(dock: HTMLElement, dims: ApartmentFaceDimensions): boolean {
@@ -89,21 +104,6 @@ function applyMobileDockLayout(dock: HTMLElement, dims: ApartmentFaceDimensions)
   dock.style.maxHeight = `${Math.round(maxHeight)}px`
   dock.style.overflowY = 'auto'
   dock.classList.add('is-layout-ready')
-  return true
-}
-
-function applyMobileTriggerLayout(trigger: HTMLElement, dims: ApartmentFaceDimensions): boolean {
-  const stage = document.getElementById('stage')
-  if (!stage) return false
-
-  const stageRect = stage.getBoundingClientRect()
-  const imageBottom = getStageImageBottom(dims)
-  if (imageBottom == null) return false
-
-  trigger.style.top = `${Math.round(imageBottom + 8)}px`
-  trigger.style.bottom = 'auto'
-  trigger.style.left = `${Math.round(stageRect.left + Math.max(10, 0))}px`
-  trigger.classList.add('is-layout-ready')
   return true
 }
 
@@ -158,9 +158,6 @@ export function layoutMobileApartmentFilterTrigger(
   trigger: HTMLElement,
   aptId: string | null,
 ): void {
-  cancelAnimationFrame(triggerLayoutRaf)
-  triggerLayoutRaf = 0
-
   if (!isMobileViewport() || !aptId) {
     if (!trigger.classList.contains('is-visible')) clearMobileTriggerStyles(trigger)
     return
@@ -171,11 +168,17 @@ export function layoutMobileApartmentFilterTrigger(
     return
   }
 
-  trigger.classList.remove('is-layout-ready')
+  const live = readLiveFaceDimensions()
+  if (live && applyMobileTriggerLayout(trigger, live)) return
+
+  if (trigger.classList.contains('is-layout-ready')) return
+
+  cancelAnimationFrame(triggerLayoutRaf)
+  triggerLayoutRaf = 0
   runLiveLayout(trigger, aptId, applyMobileTriggerLayout, 'trigger')
 }
 
-/** Mobile: painel abaixo do botão, na faixa sob a imagem. */
+/** Mobile: painel abaixo do botão. Posiciona antes de abrir; ao fechar não limpa top (evita salto). */
 export function layoutMobileApartmentFilterDock(
   dock: HTMLElement,
   aptId: string | null,
@@ -189,12 +192,29 @@ export function layoutMobileApartmentFilterDock(
   }
 
   if (!dock.classList.contains('is-open')) {
-    clearMobileDockStyles(dock)
     return
   }
 
-  dock.classList.remove('is-layout-ready')
+  const live = readLiveFaceDimensions()
+  if (live && applyMobileDockLayout(dock, live)) return
+
   runLiveLayout(dock, aptId, applyMobileDockLayout, 'dock')
+}
+
+/** Pré-posiciona o painel antes de `is-open` (evita flash no toggle). */
+export function prepareMobileApartmentFilterDock(
+  dock: HTMLElement,
+  aptId: string | null,
+): void {
+  if (!isMobileViewport() || !aptId) return
+
+  const live = readLiveFaceDimensions()
+  if (live && applyMobileDockLayout(dock, live)) return
+
+  void resolveApartmentFaceDimensions(aptId).then((dims) => {
+    if (!dims || !dock.isConnected) return
+    applyMobileDockLayout(dock, dims)
+  })
 }
 
 export function watchMobileApartmentFilterLayout(
@@ -202,15 +222,20 @@ export function watchMobileApartmentFilterLayout(
   trigger: HTMLElement,
   getAptId: () => string | null,
 ): () => void {
+  let debounce = 0
+
   const run = () => {
     const apt = getAptId()
     if (!apt) return
-    if (trigger.classList.contains('is-visible')) {
-      layoutMobileApartmentFilterTrigger(trigger, apt)
-    }
-    if (dock.classList.contains('is-open')) {
-      layoutMobileApartmentFilterDock(dock, apt)
-    }
+    window.clearTimeout(debounce)
+    debounce = window.setTimeout(() => {
+      if (trigger.classList.contains('is-visible')) {
+        layoutMobileApartmentFilterTrigger(trigger, apt)
+      }
+      if (dock.classList.contains('is-open')) {
+        layoutMobileApartmentFilterDock(dock, apt)
+      }
+    }, 32)
   }
 
   const stage = document.getElementById('stage')
@@ -220,8 +245,6 @@ export function watchMobileApartmentFilterLayout(
     stage.addEventListener('loadedmetadata', run, true)
     stage.addEventListener('loadeddata', run, true)
   }
-  ro.observe(dock)
-  ro.observe(trigger)
 
   window.addEventListener('resize', run)
   window.visualViewport?.addEventListener('resize', run)
@@ -233,6 +256,6 @@ export function watchMobileApartmentFilterLayout(
     stage?.removeEventListener('loadeddata', run, true)
     window.removeEventListener('resize', run)
     window.visualViewport?.removeEventListener('resize', run)
-    window.visualViewport?.removeEventListener('scroll', run)
+    window.clearTimeout(debounce)
   }
 }

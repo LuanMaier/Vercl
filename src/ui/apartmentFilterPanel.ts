@@ -21,6 +21,7 @@ import type { ExplorerEngine } from '../core/engine'
 import {
   layoutMobileApartmentFilterDock,
   layoutMobileApartmentFilterTrigger,
+  prepareMobileApartmentFilterDock,
   watchMobileApartmentFilterLayout,
 } from './apartmentFilterLayout'
 
@@ -236,12 +237,7 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     }
     layoutMobileApartmentFilterTrigger(trigger, aptId)
     if (dockOpen) {
-      requestAnimationFrame(() => {
-        layoutMobileApartmentFilterDock(dock, aptId)
-        requestAnimationFrame(() => layoutMobileApartmentFilterDock(dock, aptId))
-      })
-    } else {
-      layoutMobileApartmentFilterDock(dock, null)
+      layoutMobileApartmentFilterDock(dock, aptId)
     }
   }
 
@@ -260,6 +256,10 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     trigger.classList.toggle('is-visible', inContext)
     trigger.classList.toggle('is-open', dockOpen)
     trigger.setAttribute('aria-expanded', dockOpen ? 'true' : 'false')
+
+    if (dockOpen && aptId) {
+      prepareMobileApartmentFilterDock(dock, aptId)
+    }
 
     dock.classList.toggle('is-open', dockOpen)
     dock.setAttribute('aria-hidden', dockOpen ? 'false' : 'true')
@@ -298,7 +298,8 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     },
   })
 
-  trigger.addEventListener('click', () => {
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation()
     setFilterOpen(!filterOpen)
   })
 
@@ -320,14 +321,14 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     syncFilterBadges()
   })
 
-  const onOutsidePointer = (e: PointerEvent) => {
+  const onOutsideClick = (e: MouseEvent) => {
     if (!filterOpen) return
     const target = e.target as Node
     if (dock.contains(target) || trigger.contains(target)) return
     setFilterOpen(false)
   }
 
-  document.addEventListener('pointerdown', onOutsidePointer, true)
+  document.addEventListener('click', onOutsideClick, true)
 
   const unsub = engine.subscribe(() => updateVisibility())
   const onViewportChange = () => {
@@ -350,7 +351,7 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     unsub()
     unwatchLayout()
     window.removeEventListener('resize', onViewportChange)
-    document.removeEventListener('pointerdown', onOutsidePointer, true)
+    document.removeEventListener('click', onOutsideClick, true)
     filterOpen = false
     updateVisibility()
   }
