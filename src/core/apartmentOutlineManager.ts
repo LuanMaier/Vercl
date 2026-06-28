@@ -16,6 +16,7 @@ export class ApartmentOutlineManager {
   private hoveredPinId: string | null = null
   private lastApartmentId: string | null = null
   private renderGeneration = 0
+  private lastRenderKey = ''
 
   constructor(
     private engine: ExplorerEngine,
@@ -46,10 +47,12 @@ export class ApartmentOutlineManager {
     this.faceImageCache = null
     this.hoveredPinId = null
     this.lastApartmentId = null
+    this.lastRenderKey = ''
   }
 
   reload() {
     this.faceImageCache = null
+    this.lastRenderKey = ''
     void this.render()
   }
 
@@ -72,7 +75,8 @@ export class ApartmentOutlineManager {
     svg.setAttribute('viewBox', '0 0 100 100')
     svg.setAttribute('preserveAspectRatio', 'none')
     svg.setAttribute('aria-hidden', 'true')
-    document.body.appendChild(svg)
+    const stage = document.getElementById('stage')
+    ;(stage ?? document.body).appendChild(svg)
     this.svgEl = svg
   }
 
@@ -81,6 +85,7 @@ export class ApartmentOutlineManager {
       this.lastApartmentId = this.engine.activeApartmentId
       this.faceImageCache = null
       this.hoveredPinId = null
+      this.lastRenderKey = ''
     }
     this.updateVisibility()
     void this.render()
@@ -162,6 +167,21 @@ export class ApartmentOutlineManager {
     }
 
     if (gen !== this.renderGeneration) return
+
+    const renderKey = [
+      activeId,
+      viewW,
+      viewH,
+      metrics.w,
+      metrics.h,
+      this.hoveredPinId ?? '',
+      parts.join(';'),
+    ].join('|')
+
+    if (renderKey === this.lastRenderKey && this.svgEl.querySelector('.apt-outline')) {
+      return
+    }
+    this.lastRenderKey = renderKey
     this.svgEl.innerHTML = parts.join('')
 
     this.svgEl.querySelectorAll<SVGPolygonElement>('.apt-outline').forEach((el) => {
