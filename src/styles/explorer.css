@@ -2115,11 +2115,85 @@ body.apt-planta-open .poi--apartment {
   color: rgba(255, 180, 80, 0.85);
 }
 
-/* ── Filtro de apartamentos (painel compacto — canto inferior direito) ── */
-.apt-filter-dock {
+/* ── Botão + painel de filtro de apartamentos ── */
+.apt-filter-trigger {
   position: fixed;
   right: 16px;
   bottom: calc(168px + env(safe-area-inset-bottom, 0px));
+  left: auto;
+  z-index: 25;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(12, 12, 10, 0.82);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  color: #f4f0e8;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition:
+    opacity 0.35s var(--ease),
+    transform 0.4s var(--ease),
+    border-color 0.25s var(--ease),
+    background 0.25s var(--ease),
+    bottom 0.4s var(--ease);
+}
+
+body.dock-menu-collapsed .apt-filter-trigger.is-visible {
+  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+}
+
+.apt-filter-trigger.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.apt-filter-trigger.is-open,
+.apt-filter-trigger.has-filters {
+  border-color: rgba(200, 169, 110, 0.42);
+  background: rgba(18, 16, 12, 0.9);
+}
+
+.apt-filter-trigger-icon {
+  flex-shrink: 0;
+  opacity: 0.88;
+}
+
+.apt-filter-trigger-label {
+  white-space: nowrap;
+}
+
+.apt-filter-trigger-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--warm);
+  color: #111;
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.apt-filter-dock {
+  position: fixed;
+  right: 16px;
+  bottom: calc(216px + env(safe-area-inset-bottom, 0px));
   left: auto;
   z-index: 24;
   width: min(272px, calc(100vw - 32px));
@@ -2132,11 +2206,11 @@ body.apt-planta-open .poi--apartment {
     bottom 0.4s var(--ease);
 }
 
-body.dock-menu-collapsed .apt-filter-dock.is-visible {
-  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+body.dock-menu-collapsed .apt-filter-dock.is-open {
+  bottom: calc(116px + env(safe-area-inset-bottom, 0px));
 }
 
-.apt-filter-dock.is-visible {
+.apt-filter-dock.is-open {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -2176,6 +2250,36 @@ body.dock-menu-collapsed .apt-filter-dock.is-visible {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.apt-filter-dock-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.apt-filter-dock-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+
+.apt-filter-dock-close:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
 .apt-filter-eyebrow {
   margin: 0 0 4px;
   font-size: 9px;
@@ -2206,7 +2310,6 @@ body.dock-menu-collapsed .apt-filter-dock.is-visible {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 6px;
 }
 
 .apt-filter-dock-body {
@@ -2455,7 +2558,7 @@ body.dock-menu-collapsed .apt-filter-dock.is-visible {
   background: rgba(255, 255, 255, 0.06);
 }
 
-body.is-playing .apt-filter-dock.is-visible {
+body.is-playing .apt-filter-dock.is-open {
   opacity: 0.35;
   pointer-events: none;
 }
@@ -2493,6 +2596,8 @@ body.is-playing .apt-filter-dock.is-visible {
   .light-slider,
   .apt-filter-segment-btn,
   .apt-filter-clear,
+  .apt-filter-trigger,
+  .apt-filter-dock-close,
   .dock-reveal,
   [data-pano-close] {
     touch-action: manipulation;
@@ -2578,7 +2683,21 @@ body.is-mobile .dock-panel {
   padding-right: 12px;
 }
 
-/* Filtro CRM — faixa abaixo da imagem; posição via JS (stage real na tela) */
+/* Filtro CRM — mobile: botão e painel na faixa abaixo da imagem */
+body.is-mobile .apt-filter-trigger {
+  right: auto;
+  bottom: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 11px;
+  gap: 6px;
+}
+
+body.is-mobile .apt-filter-trigger.is-visible:not(.is-layout-ready) {
+  opacity: 0;
+  pointer-events: none;
+}
+
 body.is-mobile .apt-filter-dock {
   right: auto;
   left: 0;
@@ -2590,12 +2709,12 @@ body.is-mobile .apt-filter-dock {
   -webkit-overflow-scrolling: touch;
 }
 
-body.is-mobile .apt-filter-dock.is-visible:not(.is-layout-ready) {
+body.is-mobile .apt-filter-dock.is-open:not(.is-layout-ready) {
   opacity: 0;
   pointer-events: none;
 }
 
-body.is-mobile.dock-menu-collapsed .apt-filter-dock.is-visible {
+body.is-mobile.dock-menu-collapsed .apt-filter-dock.is-open {
   bottom: auto;
 }
 
@@ -2622,7 +2741,6 @@ body.is-mobile .apt-filter-dock-title {
 }
 
 body.is-mobile .apt-filter-dock-badge {
-  margin-top: 0;
   min-width: 18px;
   height: 18px;
   font-size: 9px;

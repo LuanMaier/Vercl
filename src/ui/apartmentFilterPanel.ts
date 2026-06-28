@@ -18,7 +18,11 @@ import {
 } from '../config/crmFilterConfig'
 import { isMobileViewport } from '../core/paths'
 import type { ExplorerEngine } from '../core/engine'
-import { layoutMobileApartmentFilterDock, watchMobileApartmentFilterLayout } from './apartmentFilterLayout'
+import {
+  layoutMobileApartmentFilterDock,
+  layoutMobileApartmentFilterTrigger,
+  watchMobileApartmentFilterLayout,
+} from './apartmentFilterLayout'
 
 const STATUS_OPTIONS: CrmUnitStatus[] = ['available', 'reserved', 'sold']
 
@@ -104,22 +108,42 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
   existingCleanup?.()
 
   document.getElementById('apt-filter-panel')?.remove()
+  document.getElementById('apt-filter-dock')?.remove()
   document.getElementById('apt-filter-trigger')?.remove()
 
-  let dock = document.getElementById('apt-filter-dock')
-  if (!dock) {
-    dock = document.createElement('div')
-    dock.id = 'apt-filter-dock'
-    dock.className = 'apt-filter-dock'
-    dock.setAttribute('aria-hidden', 'true')
-    dock.innerHTML = `
+  let filterOpen = false
+
+  const trigger = document.createElement('button')
+  trigger.type = 'button'
+  trigger.id = 'apt-filter-trigger'
+  trigger.className = 'apt-filter-trigger'
+  trigger.setAttribute('aria-label', 'Filtrar unidades')
+  trigger.setAttribute('aria-expanded', 'false')
+  trigger.setAttribute('aria-controls', 'apt-filter-dock')
+  trigger.innerHTML = `
+    <svg class="apt-filter-trigger-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 3.5h12M4.5 8h7M6.5 12.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+    <span class="apt-filter-trigger-label">Filtrar</span>
+    <span class="apt-filter-trigger-badge" hidden>0</span>
+  `
+  document.body.appendChild(trigger)
+
+  const dock = document.createElement('div')
+  dock.id = 'apt-filter-dock'
+  dock.className = 'apt-filter-dock'
+  dock.setAttribute('aria-hidden', 'true')
+  dock.innerHTML = `
       <div class="apt-filter-dock-panel">
         <header class="apt-filter-dock-head">
           <div class="apt-filter-dock-head-text">
             <p class="apt-filter-eyebrow">Unidades na fachada</p>
             <h2 class="apt-filter-dock-title">Filtrar</h2>
           </div>
-          <span class="apt-filter-dock-badge" hidden>0</span>
+          <div class="apt-filter-dock-head-actions">
+            <span class="apt-filter-dock-badge" hidden>0</span>
+            <button type="button" class="apt-filter-dock-close" aria-label="Fechar filtros">×</button>
+          </div>
         </header>
 
         <div class="apt-filter-dock-body">
@@ -149,10 +173,11 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
           <button type="button" class="apt-filter-clear">Limpar filtros</button>
         </footer>
       </div>
-    `
-    document.body.appendChild(dock)
-  }
+  `
+  document.body.appendChild(dock)
 
+  const triggerBadge = trigger.querySelector('.apt-filter-trigger-badge') as HTMLElement
+  const closeBtn = dock.querySelector('.apt-filter-dock-close') as HTMLButtonElement
   const clearBtn = dock.querySelector('.apt-filter-clear') as HTMLButtonElement
   const statusEl = dock.querySelector('[data-filter="status"]') as HTMLElement
   const bedroomRangeEl = dock.querySelector('[data-range="bedrooms"]') as HTMLElement
@@ -163,6 +188,11 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
 
   let paintBedroomRange: (() => void) | null = null
   let paintPriceRange: (() => void) | null = null
+
+  function setFilterOpen(open: boolean) {
+    filterOpen = open
+    updateVisibility()
+  }
 
   function updateRangeLabels() {
     const state = getApartmentFilterState()
@@ -188,23 +218,54 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     updateRangeLabels()
   }
 
+  function syncFilterBadges() {
+    const count = activeFilterCount()
+    triggerBadge.hidden = count === 0
+    triggerBadge.textContent = String(count)
+    badge.hidden = count === 0
+    badge.textContent = String(count)
+    trigger.classList.toggle('has-filters', isApartmentFilterActive())
+    dock.classList.toggle('has-filters', isApartmentFilterActive())
+  }
+
+  function layoutFilterUi(aptId: string | null, dockOpen: boolean) {
+    if (!aptId) {
+      layoutMobileApartmentFilterTrigger(trigger, null)
+      layoutMobileApartmentFilterDock(dock, null)
+      return
+    }
+    layoutMobileApartmentFilterTrigger(trigger, aptId)
+    if (dockOpen) {
+      requestAnimationFrame(() => {
+        layoutMobileApartmentFilterDock(dock, aptId)
+        requestAnimationFrame(() => layoutMobileApartmentFilterDock(dock, aptId))
+      })
+    } else {
+      layoutMobileApartmentFilterDock(dock, null)
+    }
+  }
+
   function updateVisibility() {
-    const show =
+    const inContext =
       engine.apartmentsPanelOpen &&
       Boolean(engine.activeApartmentId) &&
       engine.state === 'idle' &&
       engine.isApartmentFaceReady()
-    dock!.classList.toggle('is-visible', show)
-    dock!.setAttribute('aria-hidden', show ? 'false' : 'true')
-    const count = activeFilterCount()
-    badge.hidden = count === 0
-    badge.textContent = String(count)
-    dock!.classList.toggle('has-filters', isApartmentFilterActive())
-    if (show) {
-      layoutMobileApartmentFilterDock(dock!, engine.activeApartmentId)
-    } else {
-      layoutMobileApartmentFilterDock(dock!, null)
-    }
+
+    if (!inContext) filterOpen = false
+
+    const aptId = engine.activeApartmentId
+    const dockOpen = inContext && filterOpen
+
+    trigger.classList.toggle('is-visible', inContext)
+    trigger.classList.toggle('is-open', dockOpen)
+    trigger.setAttribute('aria-expanded', dockOpen ? 'true' : 'false')
+
+    dock.classList.toggle('is-open', dockOpen)
+    dock.setAttribute('aria-hidden', dockOpen ? 'false' : 'true')
+
+    syncFilterBadges()
+    layoutFilterUi(aptId, dockOpen)
   }
 
   paintBedroomRange = setupDualRange(bedroomRangeEl, {
@@ -218,7 +279,7 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     onChange: (min, max) => {
       setBedroomRange(min, max)
       updateRangeLabels()
-      updateVisibility()
+      syncFilterBadges()
     },
   })
 
@@ -233,8 +294,16 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     onChange: (min, max) => {
       setPriceRange(min, max)
       updateRangeLabels()
-      updateVisibility()
+      syncFilterBadges()
     },
+  })
+
+  trigger.addEventListener('click', () => {
+    setFilterOpen(!filterOpen)
+  })
+
+  closeBtn.addEventListener('click', () => {
+    setFilterOpen(false)
   })
 
   statusEl.addEventListener('click', (e) => {
@@ -242,24 +311,37 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     if (!btn?.dataset.status) return
     toggleFilterStatus(btn.dataset.status as CrmUnitStatus)
     renderStatus()
-    updateVisibility()
+    syncFilterBadges()
   })
 
   clearBtn.addEventListener('click', () => {
     clearApartmentFilter()
     syncControls()
-    updateVisibility()
+    syncFilterBadges()
   })
+
+  const onOutsidePointer = (e: PointerEvent) => {
+    if (!filterOpen) return
+    const target = e.target as Node
+    if (dock.contains(target) || trigger.contains(target)) return
+    setFilterOpen(false)
+  }
+
+  document.addEventListener('pointerdown', onOutsidePointer, true)
 
   const unsub = engine.subscribe(() => updateVisibility())
   const onViewportChange = () => {
     renderStatus()
     const apt = engine.activeApartmentId
-    if (dock!.classList.contains('is-visible') && apt) {
-      layoutMobileApartmentFilterDock(dock!, apt)
+    if (!apt) return
+    if (trigger.classList.contains('is-visible')) {
+      layoutMobileApartmentFilterTrigger(trigger, apt)
+    }
+    if (dock.classList.contains('is-open')) {
+      layoutMobileApartmentFilterDock(dock, apt)
     }
   }
-  const unwatchLayout = watchMobileApartmentFilterLayout(dock!, () => engine.activeApartmentId)
+  const unwatchLayout = watchMobileApartmentFilterLayout(dock, trigger, () => engine.activeApartmentId)
   window.addEventListener('resize', onViewportChange)
   syncControls()
   updateVisibility()
@@ -268,6 +350,8 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
     unsub()
     unwatchLayout()
     window.removeEventListener('resize', onViewportChange)
+    document.removeEventListener('pointerdown', onOutsidePointer, true)
+    filterOpen = false
     updateVisibility()
   }
   ;(mountApartmentFilterPanel as { _cleanup?: () => void })._cleanup = cleanup
