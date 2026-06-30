@@ -23,6 +23,18 @@ export function getStageMetrics(): { w: number; h: number } {
   }
 }
 
+/** Tamanho do #stage no DOM — preferir para pins alinhados ao canvas. */
+export function getStageElementSize(): { w: number; h: number } {
+  const stage = document.getElementById('stage')
+  if (stage) {
+    const r = stage.getBoundingClientRect()
+    if (r.width > 0 && r.height > 0) {
+      return { w: r.width, h: r.height }
+    }
+  }
+  return getStageMetrics()
+}
+
 export function getStageDpr(): number {
   return Math.min(window.devicePixelRatio || 1, 2)
 }

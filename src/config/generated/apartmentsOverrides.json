@@ -24,18 +24,6 @@
           "label": "Loop"
         }
       ]
-    },
-    {
-      "id": "apt-lateral",
-      "label": "Lateral",
-      "tag": "Unidade",
-      "pages": [
-        {
-          "id": "_main",
-          "type": "image",
-          "label": "Mídia"
-        }
-      ]
     }
   ]
 }

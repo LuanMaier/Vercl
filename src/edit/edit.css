@@ -2323,10 +2323,8 @@ label.edit-btn {
   pointer-events: none;
 }
 
-.edit-splat-pin {
+.splat-css2d-layer .edit-pin.splat-css2d-pin {
   pointer-events: auto;
-  position: absolute;
-  transform: translate(-50%, -50%);
 }
 
 body.edit-splat-tab #edit-bg-scene,

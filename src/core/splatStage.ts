@@ -1,18 +1,22 @@
 import type { SplatPinDefinition } from '../config/splatConfig'
-import { getSplatModelPath, getSplatMovementLimits, getSplatPins, getSplatStartView } from '../config/splatConfig'
+import {
+  getSplatCameraFlightDurationSec,
+  getSplatModelPath,
+  getSplatMovementLimits,
+  getSplatPinFocusZoomPct,
+  getSplatPins,
+  getSplatStartView,
+} from '../config/splatConfig'
 import { resolveMediaPath } from './paths'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
 import { GaussianSplatViewer } from './gaussianSplatViewer'
-import { projectAnglesToClient } from './splatSphereCoords'
 
 export class SplatStage {
   private viewer: GaussianSplatViewer | null = null
   private layer: HTMLElement | null = null
-  private pinsLayer: HTMLElement | null = null
   private loadingEl: HTMLElement | null = null
   private canvas: HTMLCanvasElement | null = null
   private active = false
-  private pinRaf = 0
   private pins: SplatPinDefinition[] = []
   private onPinClick: ((pin: SplatPinDefinition) => void) | null = null
 
@@ -41,10 +45,7 @@ export class SplatStage {
     this.canvas.className = 'stage-splat-canvas'
     this.canvas.setAttribute('aria-label', 'Gaussian Splat interativo')
 
-    this.pinsLayer = document.createElement('div')
-    this.pinsLayer.className = 'stage-splat-pins'
-
-    this.layer.append(this.loadingEl, this.canvas, this.pinsLayer)
+    this.layer.append(this.loadingEl, this.canvas)
     this.stage.appendChild(this.layer)
   }
 
@@ -53,7 +54,7 @@ export class SplatStage {
     if (!ref) return false
 
     this.ensureDom()
-    if (!this.layer || !this.canvas || !this.loadingEl || !this.pinsLayer) return false
+    if (!this.layer || !this.canvas || !this.loadingEl) return false
 
     this.pins = getSplatPins()
     this.active = true
@@ -69,6 +70,9 @@ export class SplatStage {
       loadingEl: this.loadingEl,
       movementLimits: getSplatMovementLimits(),
       startView: getSplatStartView() ?? null,
+      explorePins: true,
+      pinFocusZoomPct: getSplatPinFocusZoomPct(),
+      cameraFlightDurationSec: getSplatCameraFlightDurationSec(),
     })
     this.viewer.mount()
 
@@ -80,65 +84,26 @@ export class SplatStage {
     }
 
     this.renderPins()
-    this.startPinLoop()
     return true
   }
 
   close() {
-    if (this.pinRaf) cancelAnimationFrame(this.pinRaf)
-    this.pinRaf = 0
     this.active = false
     this.viewer?.dispose()
     this.viewer = null
     if (this.layer) this.layer.hidden = true
-    if (this.pinsLayer) this.pinsLayer.innerHTML = ''
     this.stage.classList.remove('splat-stage-active')
     document.body.classList.remove('interactive-splat-active')
   }
 
   private renderPins() {
-    if (!this.pinsLayer) return
-    this.pinsLayer.innerHTML = ''
-    for (const pin of this.pins) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'poi splat-pin'
-      btn.dataset.pinId = pin.id
-      btn.innerHTML = `<span class="poi-label">${pin.label}</span>`
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation()
+    if (!this.viewer?.isReady()) return
+    this.viewer.setPins(this.pins, {
+      mode: 'explorer',
+      onPinClick: (pin) => {
+        this.viewer?.focusPin(pin)
         this.onPinClick?.(pin)
-      })
-      this.pinsLayer!.appendChild(btn)
-    }
-  }
-
-  private startPinLoop() {
-    if (this.pinRaf) cancelAnimationFrame(this.pinRaf)
-    const tick = () => {
-      this.pinRaf = requestAnimationFrame(tick)
-      if (!this.active) return
-      this.repositionPins()
-    }
-    tick()
-  }
-
-  private repositionPins() {
-    const camera = this.viewer?.getCamera()
-    const layer = this.pinsLayer
-    if (!camera || !layer || !this.layer) return
-    const rect = this.layer.getBoundingClientRect()
-    layer.querySelectorAll<HTMLElement>('.splat-pin').forEach((el) => {
-      const pin = this.pins.find((p) => p.id === el.dataset.pinId)
-      if (!pin) return
-      const pos = projectAnglesToClient(camera, rect, pin.yaw, pin.pitch)
-      if (!pos) {
-        el.classList.add('hidden')
-        return
-      }
-      el.classList.remove('hidden')
-      el.style.left = `${pos.x - rect.left}px`
-      el.style.top = `${pos.y - rect.top}px`
+      },
     })
   }
 

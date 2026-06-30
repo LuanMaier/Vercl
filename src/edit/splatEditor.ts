@@ -6,6 +6,8 @@ import {
 import {
   applySplatOverridesFile,
   buildSplatOverridesPayload,
+  DEFAULT_SPLAT_CAMERA_FLIGHT_SEC,
+  DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT,
   getEditableSplatState,
   getSplatModelPath,
   type SplatPinDefinition,
@@ -14,7 +16,7 @@ import {
 } from '../config/splatConfig'
 import { resolveMediaPath } from '../core/paths'
 import { GaussianSplatViewer } from '../core/gaussianSplatViewer'
-import { projectAnglesToClient } from '../core/splatSphereCoords'
+import { worldPointToPinFields, type SplatWorldPoint } from '../core/splatDepthPick'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
 
 type PendingPly = { file: File; previewUrl: string }
@@ -49,12 +51,22 @@ export function initSplatEditor(deps: {
   let placePinMode = false
   let viewer: GaussianSplatViewer | null = null
   let stageMounted = false
-  let pinRaf = 0
+
+  type ActivePinDrag = {
+    el: HTMLElement
+    pinId: string
+    dragging: boolean
+    startX: number
+    startY: number
+    lastX: number
+    lastY: number
+  }
+  let activePinDrag: ActivePinDrag | null = null
+  let pinDragListenersReady = false
 
   let splatHost: HTMLElement | null = null
   let splatCanvas: HTMLCanvasElement | null = null
   let splatLoading: HTMLElement | null = null
-  let pinsLayer: HTMLElement | null = null
 
   function ensureStageDom() {
     if (splatHost) return
@@ -71,10 +83,7 @@ export function initSplatEditor(deps: {
     splatCanvas.className = 'edit-splat-canvas'
     splatCanvas.setAttribute('aria-label', 'Prévia Gaussian Splat')
 
-    pinsLayer = document.createElement('div')
-    pinsLayer.className = 'edit-splat-pins'
-
-    splatHost.append(splatLoading, splatCanvas, pinsLayer)
+    splatHost.append(splatLoading, splatCanvas)
     deps.stageViewport.appendChild(splatHost)
   }
 
@@ -102,12 +111,36 @@ export function initSplatEditor(deps: {
     deps.onDirty()
   }
 
+  function resolveNavigation(state: SplatOverridesFile) {
+    const zoom = state.pinFocusZoomPct
+    const flight = state.cameraFlightDurationSec
+    return {
+      pinFocusZoomPct:
+        typeof zoom === 'number' && Number.isFinite(zoom)
+          ? Math.min(100, Math.max(0, Math.round(zoom)))
+          : DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT,
+      cameraFlightDurationSec:
+        typeof flight === 'number' && Number.isFinite(flight)
+          ? Math.min(8, Math.max(0.15, Math.round(flight * 100) / 100))
+          : DEFAULT_SPLAT_CAMERA_FLIGHT_SEC,
+    }
+  }
+
+  function updateNavigation(patch: Partial<ReturnType<typeof resolveNavigation>>) {
+    const state = deps.getState()
+    const nav = { ...resolveNavigation(state), ...patch }
+    deps.setState({ ...state, ...nav })
+    viewer?.setNavigationSettings(nav)
+    deps.onDirty()
+  }
+
   function renderPanel() {
     const state = deps.getState()
     const hasSaved = Boolean(state.model)
     const hasPending = Boolean(pendingPly)
     const pins = state.pins ?? []
     const limits = resolveLimits(state)
+    const nav = resolveNavigation(state)
     const hasStartView = Boolean(state.startView)
 
     deps.panelEl.innerHTML = `
@@ -150,6 +183,20 @@ export function initSplatEditor(deps: {
       </div>
       <div class="edit-card edit-card--fields edit-card--stack">
         <div class="edit-card-row">
+          <span class="edit-card-kicker">Navegação por pins (site)</span>
+        </div>
+        <p class="edit-card-hint">No explorador: <strong>clique no pin</strong> voa até ele; <strong>clique no modelo</strong> (fora do pin) volta à posição inicial salva. Clicar no mesmo pin de novo não faz nada.</p>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-pin-focus-zoom">Zoom ao clicar no pin (%)</label>
+          <input id="splat-pin-focus-zoom" class="edit-input" type="number" min="0" max="100" step="1" value="${nav.pinFocusZoomPct}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-camera-flight-sec">Duração do voo (segundos)</label>
+          <input id="splat-camera-flight-sec" class="edit-input" type="number" min="0.15" max="8" step="0.1" value="${nav.cameraFlightDurationSec}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
+      </div>
+      <div class="edit-card edit-card--fields edit-card--stack">
+        <div class="edit-card-row">
           <span class="edit-card-kicker">Limites de movimento</span>
         </div>
         <p class="edit-card-hint">Percentagens relativas à <strong>posição inicial</strong> da câmera ao carregar. <strong>100%</strong> = sem restrição. Zoom: aproximar/afastar em relação à distância inicial. Órbita: arco horizontal total de 360° ou vertical de 180°, centrado na vista inicial.</p>
@@ -172,31 +219,42 @@ export function initSplatEditor(deps: {
       </div>
       <div class="edit-card">
         <div class="edit-card-row">
-          <span class="edit-card-kicker">Pins no splat</span>
-          <span class="edit-card-meta">${pins.length} pin${pins.length === 1 ? '' : 's'}</span>
+          <span class="edit-card-kicker">Pins</span>
+          <span class="edit-card-meta" data-splat-pin-count>${pins.length === 1 ? '1 pin' : `${pins.length} pins`}</span>
         </div>
-        <p class="edit-card-hint">Ative <strong>+ Colocar pin</strong> e clique na prévia. Metadados: <strong>Finalizar splat</strong>.</p>
+        <p class="edit-card-hint">Clique num pin para selecionar; arraste para reposicionar no modelo 3D. <strong>+ Colocar pin</strong> e clique no PLY — o ponto é fixado na superfície do splat. Recoloque pins antigos se ainda deslizarem ao girar.</p>
+        <div class="edit-chips" data-splat-pin-list></div>
+        <button type="button" class="edit-btn edit-btn--danger edit-btn--danger-inline" data-splat-remove-selected ${selectedPinId ? '' : 'disabled'}>
+          Remover pin selecionado
+        </button>
+        <div class="edit-inline-add">
+          <input type="text" data-splat-new-label class="edit-input" placeholder="Nome do novo pin" />
+          <button type="button" class="edit-btn edit-btn--ghost" data-splat-add-pin ${hasSaved || hasPending ? '' : 'disabled'}>+</button>
+        </div>
         <div class="edit-btn-row">
           <button type="button" class="edit-btn ${placePinMode ? 'edit-btn--gold' : 'edit-btn--ghost'}" data-splat-place-pin ${hasSaved || hasPending ? '' : 'disabled'}>
             ${placePinMode ? 'Colocando pin…' : '+ Colocar pin'}
           </button>
         </div>
-        <div class="edit-chips" data-splat-pin-list></div>
       </div>
       <div id="splat-pin-card" class="edit-card edit-card--fields edit-card--stack"></div>
       <button type="button" class="edit-btn edit-btn--finish" data-splat-finish>Finalizar splat</button>
     `
 
     const list = deps.panelEl.querySelector('[data-splat-pin-list]')!
-    list.innerHTML = ''
-    pins.forEach((pin) => {
-      const chip = document.createElement('button')
-      chip.type = 'button'
-      chip.className = 'edit-chip' + (pin.id === selectedPinId ? ' active' : '')
-      chip.textContent = pin.label
-      chip.addEventListener('click', () => selectPin(pin.id))
-      list.appendChild(chip)
-    })
+    if (!pins.length) {
+      list.innerHTML = `<span class="edit-chips-empty">Nenhum pin — use + Colocar pin na prévia</span>`
+    } else {
+      list.innerHTML = pins
+        .map(
+          (pin) =>
+            `<button type="button" class="edit-chip${pin.id === selectedPinId ? ' is-on' : ''}" data-pin-id="${pin.id}">${escapeHtml(pin.label)}</button>`,
+        )
+        .join('')
+      list.querySelectorAll<HTMLButtonElement>('[data-pin-id]').forEach((chip) => {
+        chip.addEventListener('click', () => selectPin(chip.dataset.pinId!))
+      })
+    }
 
     renderPinCard()
     wirePanelEvents()
@@ -210,46 +268,37 @@ export function initSplatEditor(deps: {
       card.innerHTML = '<p class="edit-card-hint">Selecione um pin ou coloque um novo na prévia.</p>'
       return
     }
-    const views = deps.getAvailableViews()
-    const viewOpts = views
-      .map(
-        (v) =>
-          `<option value="${v}" ${pin.targetView === v ? 'selected' : ''}>${deps.getViewLabel(v)}</option>`,
-      )
-      .join('')
     card.innerHTML = `
       <div class="edit-field">
         <label class="edit-field-label" for="splat-pin-label">Nome</label>
         <input id="splat-pin-label" class="edit-input" type="text" value="${escapeAttr(pin.label)}" />
       </div>
-      <div class="edit-field">
-        <label class="edit-field-label" for="splat-pin-tag">Tag</label>
-        <input id="splat-pin-tag" class="edit-input" type="text" value="${escapeAttr(pin.tag ?? '')}" placeholder="Opcional" />
-      </div>
-      <div class="edit-field">
-        <label class="edit-field-label" for="splat-pin-target">Ir para vista (opcional)</label>
-        <select id="splat-pin-target" class="edit-input">
-          <option value="">— nenhuma —</option>
-          ${viewOpts}
-        </select>
-      </div>
-      <button type="button" class="edit-btn edit-btn--danger" data-splat-remove-pin>Remover pin</button>
+      <code class="edit-id">id: ${escapeHtml(pin.id)}</code>
+      ${
+        typeof pin.x === 'number'
+          ? `<p class="edit-card-hint edit-card-meta">3D: ${pin.x}, ${pin.y}, ${pin.z}</p>`
+          : ''
+      }
     `
     card.querySelector('#splat-pin-label')?.addEventListener('input', (e) => {
       updatePin(pin.id, { label: (e.target as HTMLInputElement).value })
     })
-    card.querySelector('#splat-pin-tag')?.addEventListener('input', (e) => {
-      updatePin(pin.id, { tag: (e.target as HTMLInputElement).value })
-    })
-    card.querySelector('#splat-pin-target')?.addEventListener('change', (e) => {
-      const v = (e.target as HTMLSelectElement).value
-      updatePin(pin.id, { targetView: v ? Number(v) : undefined })
-    })
-    card.querySelector('[data-splat-remove-pin]')?.addEventListener('click', () => removePin(pin.id))
   }
 
   function escapeAttr(s: string) {
     return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  }
+
+  function escapeHtml(s: string) {
+    return escapeAttr(s).replace(/>/g, '&gt;')
+  }
+
+  function getNewPinLabel(): string {
+    const input = deps.panelEl.querySelector('[data-splat-new-label]') as HTMLInputElement | null
+    const trimmed = input?.value.trim()
+    if (trimmed) return trimmed
+    const n = (deps.getState().pins?.length ?? 0) + 1
+    return `Pin ${n}`
   }
 
   function wirePanelEvents() {
@@ -324,6 +373,18 @@ export function initSplatEditor(deps: {
       renderPanel()
     })
 
+    deps.panelEl.querySelector('#splat-pin-focus-zoom')?.addEventListener('change', (e) => {
+      updateNavigation({
+        pinFocusZoomPct: Math.min(100, Math.max(0, Math.round(Number((e.target as HTMLInputElement).value)))),
+      })
+    })
+    deps.panelEl.querySelector('#splat-camera-flight-sec')?.addEventListener('change', (e) => {
+      const raw = Number((e.target as HTMLInputElement).value)
+      updateNavigation({
+        cameraFlightDurationSec: Math.min(8, Math.max(0.15, Math.round(raw * 10) / 10)),
+      })
+    })
+
     deps.panelEl.querySelector('#splat-limit-zoom-forward')?.addEventListener('change', (e) => {
       updateLimit('zoomForwardPct', (e.target as HTMLInputElement).value)
     })
@@ -343,6 +404,21 @@ export function initSplatEditor(deps: {
       renderPanel()
     })
 
+    deps.panelEl.querySelector('[data-splat-add-pin]')?.addEventListener('click', () => {
+      beginAddPin()
+    })
+
+    deps.panelEl.querySelector('[data-splat-new-label]')?.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') {
+        e.preventDefault()
+        beginAddPin()
+      }
+    })
+
+    deps.panelEl.querySelector('[data-splat-remove-selected]')?.addEventListener('click', () => {
+      if (selectedPinId) removePin(selectedPinId)
+    })
+
     deps.panelEl.querySelector('[data-splat-finish]')?.addEventListener('click', () => {
       void persist()
     })
@@ -353,6 +429,12 @@ export function initSplatEditor(deps: {
     const pins = (state.pins ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p))
     deps.setState({ ...state, pins })
     deps.onDirty()
+    if (Object.keys(patch).length === 1 && patch.label !== undefined) {
+      viewer?.updatePinLabel(id, patch.label)
+      const chip = deps.panelEl.querySelector(`[data-pin-id="${id}"]`)
+      if (chip) chip.textContent = patch.label
+      return
+    }
     renderPanel()
     renderStagePins()
   }
@@ -370,30 +452,55 @@ export function initSplatEditor(deps: {
   }
 
   function selectPin(id: string) {
-    selectedPinId = id
-    renderPanel()
-    renderStagePins()
+    highlightPin(id, { refreshStage: true })
   }
 
-  function addPin(angles: { yaw: number; pitch: number }) {
+  function highlightPin(id: string, opts?: { refreshStage?: boolean }) {
+    selectedPinId = id
+    viewer?.setSelectedPin(id)
+    renderPanel()
+    if (opts?.refreshStage !== false) renderStagePins()
+  }
+
+  function beginAddPin() {
+    if (viewer?.isReady()) {
+      const rect = splatHost?.getBoundingClientRect()
+      if (rect) {
+        const cx = rect.left + rect.width / 2
+        const cy = rect.top + rect.height / 2
+        const world = viewer.pointerToWorld(cx, cy, 'refined')
+        if (world) {
+          addPinAtWorld(world)
+          return
+        }
+      }
+    }
+    placePinMode = true
+    viewer?.setPinPlacement(true)
+    deps.showToast('Clique no modelo 3D para fixar o pin na profundidade')
+    renderPanel()
+  }
+
+  function addPinAtWorld(point: SplatWorldPoint) {
     const state = deps.getState()
     const pins = [...(state.pins ?? [])]
-    const n = pins.length + 1
+    const label = getNewPinLabel()
     const pin: SplatPinDefinition = {
       id: `splat-pin-${Date.now()}`,
-      label: `Pin ${n}`,
-      yaw: angles.yaw,
-      pitch: angles.pitch,
+      label,
+      ...worldPointToPinFields(point),
     }
     pins.push(pin)
     deps.setState({ ...state, pins })
     selectedPinId = pin.id
     placePinMode = false
     viewer?.setPinPlacement(false)
+    const labelInput = deps.panelEl.querySelector('[data-splat-new-label]') as HTMLInputElement | null
+    if (labelInput) labelInput.value = ''
     deps.onDirty()
     renderPanel()
     renderStagePins()
-    deps.showToast('Pin adicionado')
+    deps.showToast('Pin fixado no modelo 3D')
   }
 
   async function resolvePreviewUrl(): Promise<string | null> {
@@ -405,7 +512,7 @@ export function initSplatEditor(deps: {
 
   async function refreshStagePreview() {
     ensureStageDom()
-    if (!splatHost || !splatCanvas || !splatLoading || !pinsLayer) return
+    if (!splatHost || !splatCanvas || !splatLoading) return
 
     const url = await resolvePreviewUrl()
     if (!url) {
@@ -424,8 +531,8 @@ export function initSplatEditor(deps: {
         pinPlacement: placePinMode,
         movementLimits: resolveLimits(deps.getState()),
         startView: deps.getState().startView ?? null,
-        onClickAngles: (angles) => {
-          if (placePinMode) addPin(angles)
+        onClickWorld: (point) => {
+          if (placePinMode) addPinAtWorld(point)
         },
       })
       viewer.mount()
@@ -433,51 +540,132 @@ export function initSplatEditor(deps: {
     viewer.setPinPlacement(placePinMode)
     viewer.setMovementLimits(resolveLimits(deps.getState()))
     viewer.setStartView(deps.getState().startView ?? null)
+    viewer.setNavigationSettings(resolveNavigation(deps.getState()))
     await viewer.load(url)
     renderStagePins()
-    startPinLoop()
+  }
+
+  function setPinWorldPosition(pinId: string, point: SplatWorldPoint) {
+    const state = deps.getState()
+    const pins = (state.pins ?? []).map((p) =>
+      p.id === pinId ? { ...p, ...worldPointToPinFields(point) } : p,
+    )
+    deps.setState({ ...state, pins })
+    viewer?.setPinWorldPoint(pinId, point)
+    const pin = pins.find((p) => p.id === pinId)
+    if (pin) updatePinCoordsInCard(pin)
+  }
+
+  function movePinDrag(clientX: number, clientY: number) {
+    if (!activePinDrag) return
+    if (!activePinDrag.dragging) {
+      const dx = clientX - activePinDrag.startX
+      const dy = clientY - activePinDrag.startY
+      if (Math.hypot(dx, dy) < 4) return
+      activePinDrag.dragging = true
+      activePinDrag.el.classList.add('dragging')
+      viewer?.setOrbitEnabled(false)
+    }
+    const world = viewer?.pointerToWorld(clientX, clientY, 'fast')
+    if (!world) return
+    activePinDrag.lastX = clientX
+    activePinDrag.lastY = clientY
+    setPinWorldPosition(activePinDrag.pinId, world)
+  }
+
+  function endPinDrag() {
+    if (!activePinDrag) return
+    const drag = activePinDrag
+    activePinDrag = null
+    drag.el.classList.remove('dragging')
+    viewer?.setOrbitEnabled(true)
+    if (!drag.dragging) return
+    const refined = viewer?.pointerToWorld(drag.lastX, drag.lastY, 'refined')
+    if (refined) setPinWorldPosition(drag.pinId, refined)
+    deps.onDirty()
+    renderPinCard()
+  }
+
+  function updatePinCoordsInCard(pin: SplatPinDefinition) {
+    if (pin.id !== selectedPinId) return
+    const coords = deps.panelEl.querySelector('#splat-pin-card .edit-card-meta')
+    if (coords && typeof pin.x === 'number') {
+      coords.textContent = `3D: ${pin.x}, ${pin.y}, ${pin.z}`
+    }
+  }
+
+  function flushActivePinDrag() {
+    if (activePinDrag?.dragging) endPinDrag()
+    else if (activePinDrag) {
+      activePinDrag.el.classList.remove('dragging')
+      activePinDrag = null
+      viewer?.setOrbitEnabled(true)
+    }
+  }
+
+  function ensurePinDragListeners() {
+    if (pinDragListenersReady) return
+    pinDragListenersReady = true
+    document.addEventListener('mousemove', (e) => movePinDrag(e.clientX, e.clientY))
+    document.addEventListener('mouseup', () => endPinDrag())
+    document.addEventListener(
+      'touchmove',
+      (e) => {
+        if (!activePinDrag) return
+        e.preventDefault()
+        movePinDrag(e.touches[0].clientX, e.touches[0].clientY)
+      },
+      { passive: false },
+    )
+    document.addEventListener('touchend', () => endPinDrag())
+  }
+
+  function makePinDraggable(el: HTMLElement, pinId: string) {
+    ensurePinDragListeners()
+    const startDrag = (clientX: number, clientY: number) => {
+      if (selectedPinId !== pinId) {
+        highlightPin(pinId, { refreshStage: false })
+        viewer?.setSelectedPin(pinId)
+        el.classList.add('selected')
+      }
+      activePinDrag = {
+        el,
+        pinId,
+        dragging: false,
+        startX: clientX,
+        startY: clientY,
+        lastX: clientX,
+        lastY: clientY,
+      }
+    }
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      startDrag(e.clientX, e.clientY)
+    })
+    el.addEventListener(
+      'touchstart',
+      (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        startDrag(e.touches[0].clientX, e.touches[0].clientY)
+      },
+      { passive: false },
+    )
   }
 
   function renderStagePins() {
-    if (!pinsLayer) return
-    pinsLayer.innerHTML = ''
+    if (!viewer?.isReady()) return
     const pins = deps.getState().pins ?? []
-    for (const pin of pins) {
-      const el = document.createElement('button')
-      el.type = 'button'
-      el.className = 'edit-pin edit-splat-pin' + (pin.id === selectedPinId ? ' selected' : '')
-      el.dataset.id = pin.id
-      el.innerHTML = `<span class="edit-pin-label">${pin.label}</span>`
-      el.addEventListener('click', (e) => {
-        e.stopPropagation()
+    viewer.setPins(pins, {
+      mode: 'editor',
+      selectedId: selectedPinId,
+      onPinClick: (pin) => {
+        if (activePinDrag?.dragging) return
         selectPin(pin.id)
-      })
-      pinsLayer.appendChild(el)
-    }
-  }
-
-  function startPinLoop() {
-    if (pinRaf) cancelAnimationFrame(pinRaf)
-    const tick = () => {
-      pinRaf = requestAnimationFrame(tick)
-      if (!splatHost || splatHost.hidden) return
-      const camera = viewer?.getCamera()
-      if (!camera || !pinsLayer) return
-      const rect = splatHost.getBoundingClientRect()
-      pinsLayer.querySelectorAll<HTMLElement>('.edit-splat-pin').forEach((el) => {
-        const pin = deps.getState().pins?.find((p) => p.id === el.dataset.id)
-        if (!pin) return
-        const pos = projectAnglesToClient(camera, rect, pin.yaw, pin.pitch)
-        if (!pos) {
-          el.style.opacity = '0'
-          return
-        }
-        el.style.opacity = '1'
-        el.style.left = `${pos.x - rect.left}px`
-        el.style.top = `${pos.y - rect.top}px`
-      })
-    }
-    tick()
+      },
+      onPinElement: (el, pin) => makePinDraggable(el, pin.id),
+    })
   }
 
   function mountStage() {
@@ -488,8 +676,7 @@ export function initSplatEditor(deps: {
   }
 
   function unmountStage() {
-    if (pinRaf) cancelAnimationFrame(pinRaf)
-    pinRaf = 0
+    flushActivePinDrag()
     if (splatHost) splatHost.hidden = true
     placePinMode = false
     viewer?.setPinPlacement(false)
@@ -507,6 +694,7 @@ export function initSplatEditor(deps: {
         state.dockEnabled,
         resolveLimits(state),
         state.startView ?? null,
+        resolveNavigation(state),
       ),
     )
     deps.showToast('Splat finalizado')
@@ -519,6 +707,7 @@ export function initSplatEditor(deps: {
     mountStage,
     unmountStage,
     persist,
+    flushActivePinDrag,
     isStageMounted: () => stageMounted,
     getStateSnapshot: () => deps.getState(),
   }

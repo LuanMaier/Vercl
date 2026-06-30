@@ -3,12 +3,31 @@ import splatOverridesJson from './generated/splatOverrides.json'
 export type SplatPinDefinition = {
   id: string
   label: string
-  /** Graus — azimute horizontal (0 = frente -Z). */
-  yaw: number
-  /** Graus — elevação (-90..90). */
-  pitch: number
+  /** Posição local no SplatMesh (x/y/z relativos ao PLY). */
+  x?: number
+  y?: number
+  z?: number
+  /** Legado — direção esférica; usado se x/y/z ausentes. */
+  yaw?: number
+  pitch?: number
   tag?: string
   targetView?: number
+}
+
+/** Zoom padrão ao clicar num pin do splat (% de aproximação). */
+export const DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT = 30
+
+/** @deprecated use getSplatPinFocusZoomPct() */
+export const SPLAT_PIN_FOCUS_ZOOM_PCT = DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT
+
+/** Duração padrão do voo de câmera (segundos). */
+export const DEFAULT_SPLAT_CAMERA_FLIGHT_SEC = 1
+
+export type SplatNavigationSettings = {
+  /** % de aproximação da câmera em direção ao pin ao clicar. */
+  pinFocusZoomPct?: number
+  /** Duração do voo suave pin ↔ vista inicial (segundos). */
+  cameraFlightDurationSec?: number
 }
 
 export type SplatMovementLimits = {
@@ -50,7 +69,7 @@ export type SplatOverridesFile = {
   limits?: SplatMovementLimits
   /** Vista inicial ao carregar o PLY; omitido = posição padrão do viewer. */
   startView?: SplatStartView | null
-}
+} & SplatNavigationSettings
 
 let overrides: SplatOverridesFile = {
   ...(splatOverridesJson as SplatOverridesFile),
@@ -110,6 +129,18 @@ export function getSplatStartView(): SplatStartView | undefined {
   return isValidStartView(v) ? { ...v } : undefined
 }
 
+export function getSplatPinFocusZoomPct(): number {
+  const v = overrides.pinFocusZoomPct
+  if (typeof v !== 'number' || !Number.isFinite(v)) return DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT
+  return Math.min(100, Math.max(0, Math.round(v)))
+}
+
+export function getSplatCameraFlightDurationSec(): number {
+  const v = overrides.cameraFlightDurationSec
+  if (typeof v !== 'number' || !Number.isFinite(v)) return DEFAULT_SPLAT_CAMERA_FLIGHT_SEC
+  return Math.min(8, Math.max(0.15, Math.round(v * 100) / 100))
+}
+
 export function getEditableSplatState(): SplatOverridesFile {
   return {
     version: 1,
@@ -118,6 +149,8 @@ export function getEditableSplatState(): SplatOverridesFile {
     dockEnabled: Boolean(overrides.dockEnabled),
     limits: getSplatMovementLimits(),
     startView: getSplatStartView() ?? null,
+    pinFocusZoomPct: getSplatPinFocusZoomPct(),
+    cameraFlightDurationSec: getSplatCameraFlightDurationSec(),
   }
 }
 
@@ -129,7 +162,23 @@ export function applySplatOverridesFile(data: SplatOverridesFile) {
     dockEnabled: Boolean(data.dockEnabled),
     limits: data.limits ? { ...data.limits } : undefined,
     startView: isValidStartView(data.startView) ? { ...data.startView } : undefined,
+    pinFocusZoomPct:
+      typeof data.pinFocusZoomPct === 'number' ? getSplatPinFocusZoomPctFromRaw(data.pinFocusZoomPct) : undefined,
+    cameraFlightDurationSec:
+      typeof data.cameraFlightDurationSec === 'number'
+        ? getSplatCameraFlightDurationSecFromRaw(data.cameraFlightDurationSec)
+        : undefined,
   }
+}
+
+function getSplatPinFocusZoomPctFromRaw(v: number): number {
+  if (!Number.isFinite(v)) return DEFAULT_SPLAT_PIN_FOCUS_ZOOM_PCT
+  return Math.min(100, Math.max(0, Math.round(v)))
+}
+
+function getSplatCameraFlightDurationSecFromRaw(v: number): number {
+  if (!Number.isFinite(v)) return DEFAULT_SPLAT_CAMERA_FLIGHT_SEC
+  return Math.min(8, Math.max(0.15, Math.round(v * 100) / 100))
 }
 
 export function buildSplatOverridesPayload(
@@ -138,6 +187,7 @@ export function buildSplatOverridesPayload(
   dockEnabled?: boolean,
   limits?: SplatMovementLimits,
   startView?: SplatStartView | null,
+  navigation?: SplatNavigationSettings,
 ): SplatOverridesFile {
   const resolvedLimits = limits ?? getSplatMovementLimits()
   const resolvedStart =
@@ -146,17 +196,24 @@ export function buildSplatOverridesPayload(
       : startView && isValidStartView(startView)
         ? { ...startView }
         : undefined
+  const pinFocusZoomPct = navigation?.pinFocusZoomPct ?? getSplatPinFocusZoomPct()
+  const cameraFlightDurationSec = navigation?.cameraFlightDurationSec ?? getSplatCameraFlightDurationSec()
   return {
     version: 1,
     model: model ?? overrides.model ?? null,
     dockEnabled: dockEnabled ?? Boolean(overrides.dockEnabled),
     limits: { ...resolvedLimits },
+    pinFocusZoomPct,
+    cameraFlightDurationSec,
     ...(resolvedStart ? { startView: resolvedStart } : {}),
     pins: pins.map((p) => ({
       id: p.id,
       label: p.label,
-      yaw: p.yaw,
-      pitch: p.pitch,
+      ...(typeof p.x === 'number' ? { x: p.x } : {}),
+      ...(typeof p.y === 'number' ? { y: p.y } : {}),
+      ...(typeof p.z === 'number' ? { z: p.z } : {}),
+      ...(typeof p.yaw === 'number' ? { yaw: p.yaw } : {}),
+      ...(typeof p.pitch === 'number' ? { pitch: p.pitch } : {}),
       ...(p.tag ? { tag: p.tag } : {}),
       ...(p.targetView != null ? { targetView: p.targetView } : {}),
     })),

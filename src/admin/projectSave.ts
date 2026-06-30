@@ -14,6 +14,8 @@ import {
 import {
   clearSavedMediaPath,
   applyPoisOverridesFile,
+  getProjectChildPoisMap,
+  getProjectPoisMap,
   notifyProjectUpdated,
   patchProjectLightMotionBlur,
   patchProjectViewIdleMode,
@@ -256,10 +258,20 @@ export async function savePoisMapToProject(
   poisByView: Record<number, PoiDefinition[]>,
   opts?: SaveProjectOpts & { byParent?: Record<string, PoiDefinition[]> },
 ): Promise<void> {
-  const VIEW_INDICES = getAvailableViewIndices()
+  const existing = getProjectPoisMap()
+  const existingChildren = getProjectChildPoisMap()
+  const indices = new Set(getAvailableViewIndices())
+  if (existing) {
+    for (const key of Object.keys(existing)) {
+      const n = Number(key)
+      if (Number.isFinite(n)) indices.add(n)
+    }
+  }
   const byView: Record<string, PoiDefinition[]> = {}
-  for (const idx of VIEW_INDICES) {
-    byView[String(idx)] = poisByView[idx] ?? []
+  for (const idx of [...indices].sort((a, b) => a - b)) {
+    const incoming = poisByView[idx]
+    const prev = existing?.[idx] ?? []
+    byView[String(idx)] = incoming?.length ? incoming : prev.length ? prev : incoming ?? []
   }
   const payload: {
     version: 1
@@ -280,6 +292,8 @@ export async function savePoisMapToProject(
       byParent[parentId] = list
     }
     if (Object.keys(byParent).length) payload.byParent = byParent
+  } else if (existingChildren && Object.keys(existingChildren).length) {
+    payload.byParent = { ...existingChildren }
   }
   const res = await fetch('/api/admin/save-pois', {
     method: 'POST',

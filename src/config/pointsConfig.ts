@@ -1,5 +1,9 @@
 import pointsOverridesJson from './generated/pointsOverrides.json'
-import { DOCK_HUB_VIEWS, isDockHubView } from './dockHubs'
+import {
+  DOCK_HUB_VIEWS,
+  DOCK_LEADING_HUB_VIEWS,
+  DOCK_TRAILING_HUB_VIEW,
+} from './dockHubs'
 import { getProjectMenuImagePath, getProjectMenuVideoPath } from './projectMedia'
 import { TRACK_ORDER as DEFAULT_TRACK_ORDER, VIEWPOINTS as DEFAULT_VIEWPOINTS } from './points'
 import type { Viewpoint } from '../core/types'
@@ -67,17 +71,7 @@ export function getTrackOrder(): number[] {
     seen.add(idx)
     order.push(idx)
   }
-  if (!order.includes(0) && getViewpoint(0)) order.unshift(0)
-  for (const hub of DOCK_HUB_VIEWS) {
-    if (getViewpoint(hub) && !order.includes(hub)) {
-      const pano = order.indexOf(0)
-      const lastHub = DOCK_HUB_VIEWS.filter((h) => order.includes(h)).pop()
-      const insertAt =
-        lastHub !== undefined ? order.indexOf(lastHub) + 1 : pano >= 0 ? pano + 1 : 0
-      order.splice(insertAt, 0, hub)
-    }
-  }
-  return order
+  return normalizeTrackOrder(order)
 }
 
 export function getViewpoint(viewIndex: number): Viewpoint | null {
@@ -199,13 +193,16 @@ export function getPointsOverridesSnapshot(): PointsOverridesFile {
 
 export async function reloadPointsOverrides() {
   const t = Date.now()
-  try {
-    const res = await fetch(`/src/config/generated/pointsOverrides.json?t=${t}`)
-    if (res.ok) {
+  const urls = ['/config/pointsOverrides.json', '/src/config/generated/pointsOverrides.json']
+  for (const base of urls) {
+    try {
+      const res = await fetch(`${base}?t=${t}`)
+      if (!res.ok) continue
       overrides = { ...(await res.json()), version: 1 } as PointsOverridesFile
+      return
+    } catch {
+      /* try next */
     }
-  } catch {
-    /* dev offline */
   }
 }
 
@@ -213,8 +210,15 @@ export function buildPointsOverridesPayload(
   trackOrder: number[],
   viewpoints: Record<number, Partial<Viewpoint>>,
 ): PointsOverridesFile {
+  const snap = getPointsOverridesSnapshot()
+  const mergedTrack = [...trackOrder]
+  for (const idx of snap.trackOrder ?? []) {
+    if (mergedTrack.includes(idx) || !getViewpoint(idx)) continue
+    mergedTrack.push(idx)
+  }
+
   const vpOut: Record<string, Partial<Viewpoint>> = {}
-  for (const idx of trackOrder) {
+  for (const idx of mergedTrack) {
     const patch = viewpoints[idx]
     if (
       !patch ||
@@ -229,11 +233,20 @@ export function buildPointsOverridesPayload(
       continue
     vpOut[String(idx)] = patch
   }
+  for (const [key, patch] of Object.entries(snap.viewpoints ?? {})) {
+    if (!vpOut[key]) vpOut[key] = { ...patch }
+  }
+
+  const mergedCustomViews = {
+    ...(snap.customViews ?? {}),
+    ...(overrides.customViews ?? {}),
+  }
+
   return {
     version: 1,
-    trackOrder: normalizeTrackOrder(trackOrder),
+    trackOrder: normalizeTrackOrder(mergedTrack),
     viewpoints: Object.keys(vpOut).length ? vpOut : undefined,
-    customViews: overrides.customViews,
+    customViews: Object.keys(mergedCustomViews).length ? mergedCustomViews : undefined,
     removedViews: overrides.removedViews?.length ? [...overrides.removedViews] : undefined,
   }
 }
@@ -245,21 +258,36 @@ export function buildScenesOverridesPayload(): PointsOverridesFile {
 export function normalizeTrackOrder(order: number[]): number[] {
   const seen = new Set<number>()
   const out: number[] = []
-  if (order.includes(0) && getViewpoint(0)) {
-    out.push(0)
-    seen.add(0)
-  }
-  for (const hub of DOCK_HUB_VIEWS) {
-    if (getViewpoint(hub)) {
-      out.push(hub)
-      seen.add(hub)
-    }
-  }
+
   for (const idx of order) {
-    if (idx === 0 || isDockHubView(idx) || seen.has(idx) || !getViewpoint(idx)) continue
+    if (seen.has(idx) || !getViewpoint(idx)) continue
+    if (idx === DOCK_TRAILING_HUB_VIEW) continue
     seen.add(idx)
     out.push(idx)
   }
+
+  const panoIdx = out.indexOf(0)
+  if (panoIdx > 0) {
+    out.splice(panoIdx, 1)
+    out.unshift(0)
+  }
+
+  for (const hub of DOCK_LEADING_HUB_VIEWS) {
+    if (!getViewpoint(hub) || out.includes(hub)) continue
+    const pano = out.indexOf(0)
+    const lastHub = DOCK_LEADING_HUB_VIEWS.filter((h) => out.includes(h)).pop()
+    const insertAt =
+      lastHub !== undefined ? out.indexOf(lastHub) + 1 : pano >= 0 ? pano + 1 : 0
+    out.splice(insertAt, 0, hub)
+  }
+
+  const trailingIdx = out.indexOf(DOCK_TRAILING_HUB_VIEW)
+  if (trailingIdx >= 0) out.splice(trailingIdx, 1)
+
+  if (getViewpoint(DOCK_TRAILING_HUB_VIEW)) {
+    out.push(DOCK_TRAILING_HUB_VIEW)
+  }
+
   return out
 }
 

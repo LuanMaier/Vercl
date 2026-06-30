@@ -1,7 +1,7 @@
 import { removeMediaFromProject, saveMediaToProject } from '../admin/projectSave'
 import { APARTMENTS_HUB_VIEW } from '../config/apartments'
 import { INTERIORS_HUB_VIEW } from '../config/interiors'
-import { DOCK_HUB_VIEWS, isDockHubView } from '../config/dockHubs'
+import { DOCK_PIN_FIRST_VIEWS, DOCK_PIN_LAST_VIEWS, isDockHubView } from '../config/dockHubs'
 import { getProjectMenuImagePath, getProjectMenuVideoPath, getProjectMenuLoopVideoPath, resolveMenuMediaModeEditor } from '../config/projectMedia'
 import {
   getAvailableViewIndices,
@@ -12,7 +12,7 @@ import {
 import { VIEWPOINTS } from '../config/points'
 import type { Viewpoint } from '../core/types'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
-import { attachDockDragSort } from '../ui/dockDragSort'
+import { attachDockDragSort, readDockSortOrder } from '../ui/dockDragSort'
 import { syncDockTabsLayout } from '../ui/dockLayout'
 import { playEditImagePreview, playEditTransitionPreview } from './editTransitionPreview'
 
@@ -140,10 +140,42 @@ export function initDockEditor(deps: {
     }
   }
 
+  /** Sincroniza trackOrder com a ordem atual na prévia (antes de re-render ou salvar). */
+  function flushTrackOrderFromPreview(): void {
+    const sortable = deps.previewEl.querySelector('#edit-dock-sortable') as HTMLElement | null
+    if (!sortable) return
+    const order = normalizeTrackOrder(
+      readDockSortOrder(sortable, {
+        keyAttr: 'data-i',
+        parseKey: (v) => Number(v),
+        pinFirst: [...DOCK_PIN_FIRST_VIEWS],
+        pinLast: [...DOCK_PIN_LAST_VIEWS],
+      }),
+    )
+    const st = deps.getState()
+    const prev = st.trackOrder
+    if (prev.length === order.length && prev.every((v, i) => v === order[i])) return
+    st.trackOrder = order
+    deps.setState(st)
+    notifyDirty()
+  }
+
+  function syncSelectionUi() {
+    deps.previewEl.querySelectorAll<HTMLButtonElement>('.dock-tab').forEach((btn) => {
+      const idx = Number(btn.dataset.i)
+      btn.classList.toggle('active', Number.isFinite(idx) && idx === selectedView)
+    })
+    deps.chipListEl.querySelectorAll<HTMLButtonElement>('.edit-chip').forEach((btn) => {
+      const idx = Number(btn.dataset.view)
+      btn.classList.toggle('is-on', Number.isFinite(idx) && idx === selectedView)
+    })
+  }
+
   function renderPreview() {
+    flushTrackOrderFromPreview()
     const { trackOrder } = deps.getState()
     deps.previewEl.innerHTML = `
-      <p class="edit-dock-drag-hint">Arraste os botões — a faixa encolhe ou cresce conforme a quantidade. <span class="edit-dock-legend">▶ = mídia customizada</span></p>
+      <p class="edit-dock-drag-hint">Arraste os botões — <strong>Interativo</strong> fica sempre por último. <span class="edit-dock-legend">▶ = mídia customizada</span></p>
       <div class="dock-block">
         <p class="dock-eyebrow">Explorar o empreendimento</p>
         <div class="dock-tabs dock-tabs--sortable" id="edit-dock-sortable" role="tablist">
@@ -177,7 +209,8 @@ export function initDockEditor(deps: {
     teardownDockDrag = attachDockDragSort(sortable, {
       keyAttr: 'data-i',
       parseKey: (v) => Number(v),
-      pinFirst: [0, ...DOCK_HUB_VIEWS],
+      pinFirst: [...DOCK_PIN_FIRST_VIEWS],
+      pinLast: [...DOCK_PIN_LAST_VIEWS],
       isDraggable: (idx) => idx !== 0 && !isDockHubView(idx),
       onOrderChange: (order) => {
         const st = deps.getState()
@@ -209,7 +242,7 @@ export function initDockEditor(deps: {
       .map((idx) => {
         const vp = vpFor(idx)
         const label = vp?.label ?? `Vista ${idx}`
-        const locked = idx === 0 || idx === 1 ? ' · fixo' : ''
+        const locked = idx === 0 || isDockHubView(idx) ? ' · fixo' : ''
         const vid =
           !isDockHubView(idx) && hasMenuMedia(idx, vp)
             ? '<span class="edit-chip-media" aria-hidden="true">▶</span>'
@@ -887,20 +920,23 @@ export function initDockEditor(deps: {
   }
 
   function selectDockTab(viewIndex: number) {
+    flushTrackOrderFromPreview()
     selectedView = viewIndex
     const vp = vpFor(viewIndex)
     frozenPanelTitle =
       vp?.label ??
       VIEWPOINTS[viewIndex]?.label ??
       `Vista ${viewIndex}`
-    renderAll()
+    syncSelectionUi()
+    void updateCard()
     deps.onViewSelect?.(viewIndex)
   }
 
   function clearDockSelection() {
     selectedView = null
     frozenPanelTitle = null
-    renderAll()
+    syncSelectionUi()
+    void updateCard()
   }
 
   deps.newLabelInput.addEventListener('keydown', (e) => {
@@ -956,6 +992,7 @@ export function initDockEditor(deps: {
 
   /** Grava nome/tag do card aberto antes de Finalizar menu — evita perder se o campo ainda tem foco. */
   function flushCardEdits(): boolean {
+    flushTrackOrderFromPreview()
     if (selectedView === null) return true
     const labelIn = document.getElementById('dock-label') as HTMLInputElement | null
     const tagIn = document.getElementById('dock-tag') as HTMLInputElement | null
@@ -988,6 +1025,7 @@ export function initDockEditor(deps: {
     selectDockTab,
     clearDockSelection,
     flushCardEdits,
+    flushTrackOrderFromPreview,
     getSelectedView: () => selectedView,
   }
 }

@@ -4,12 +4,13 @@ export type SplatAngles = { yaw: number; pitch: number }
 
 /** Direção unitária a partir de yaw/pitch (graus), mesmo sistema da panorâmica. */
 export function anglesToDirection(yaw: number, pitch: number, out = new THREE.Vector3()): THREE.Vector3 {
-  const phi = THREE.MathUtils.degToRad(90 - pitch)
-  const theta = THREE.MathUtils.degToRad(yaw)
+  const pitchRad = THREE.MathUtils.degToRad(pitch)
+  const yawRad = THREE.MathUtils.degToRad(yaw)
+  const horiz = Math.cos(pitchRad)
   out.set(
-    Math.sin(phi) * Math.cos(theta),
-    Math.cos(phi),
-    Math.sin(phi) * Math.sin(theta),
+    horiz * Math.sin(yawRad),
+    Math.sin(pitchRad),
+    -horiz * Math.cos(yawRad),
   )
   return out
 }
@@ -26,9 +27,12 @@ export function projectAnglesToClient(
   rect: DOMRect,
   yaw: number,
   pitch: number,
-  distance = 4,
+  target = new THREE.Vector3(0, 0, 0),
+  markerDistance = 4,
 ): { x: number; y: number; visible: boolean } | null {
-  const world = anglesToDirection(yaw, pitch).multiplyScalar(distance)
+  const world = target.clone().add(anglesToDirection(yaw, pitch).multiplyScalar(markerDistance))
+  const viewPos = world.clone().applyMatrix4(camera.matrixWorldInverse)
+  if (viewPos.z >= -0.02) return null
   const projected = world.project(camera)
   if (projected.z > 1) return null
   return {

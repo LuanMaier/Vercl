@@ -14,6 +14,7 @@ import { getAvailableViewIndices, getViewpoint } from '../config/pointsConfig'
 import { resolveMediaSrc, revokeAllPoiMediaUrls } from '../media/resolvePoiMedia'
 import { isPoiMediaRef } from '../media/poiMediaStore'
 import {
+  isPanoramaImageCoordSpace,
   loadPosterImageMetrics,
   migratePanoramaPinToImageCoords,
   panoramaPinStagePct,
@@ -21,7 +22,7 @@ import {
 } from './panoramaPinLayout'
 import { collapseDockMenu } from '../ui/dockCollapse'
 import { bindTap } from '../ui/bindTap'
-import { getStageMetrics } from './stageMetrics'
+import { getStageElementSize } from './stageMetrics'
 import type { ExplorerEngine } from './engine'
 import type { JumpOptions, PoiDefinition } from './types'
 
@@ -68,7 +69,7 @@ export class PoiManager {
       if (stage) this.stageResizeObserver.observe(stage)
     }
     this.unsubEngine = this.engine.subscribe(() => this.onEngineUpdate())
-    void this.repositionAllPins()
+    void this.repositionAllPins().then(() => this.updateVisibility())
   }
 
   private scheduleReposition(clearMetrics = false) {
@@ -202,17 +203,22 @@ export class PoiManager {
   private async applyPinPosition(poi: PoiDefinition, viewIndex: number) {
     const el = document.getElementById(`poi-${poi.id}`) as HTMLElement | null
     if (!el) return
-    const { w: viewW, h: viewH } = getStageMetrics()
+    const { w: viewW, h: viewH } = getStageElementSize()
     const metrics = await this.getViewPosterMetrics(viewIndex)
     const resolved = { ...poi }
-    migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
+    if (!isPanoramaImageCoordSpace(resolved)) {
+      migratePanoramaPinToImageCoords(resolved, viewW, viewH, metrics.w, metrics.h)
+    }
     let pos: { x: number; y: number } | null = null
     if (resolved.coordSpace === 'image') {
       pos = panoramaPinStagePct(resolved, viewW, viewH, metrics.w, metrics.h)
     } else {
       pos = { x: resolved.x, y: resolved.y }
     }
-    if (!pos) return
+    if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+      el.style.visibility = 'hidden'
+      return
+    }
     el.style.left = `${pos.x}%`
     el.style.top = `${pos.y}%`
     el.style.visibility = ''
@@ -237,7 +243,7 @@ export class PoiManager {
   private async applyChildPinPosition(poi: PoiDefinition, parentId: string) {
     const el = document.getElementById(`poi-${poi.id}`) as HTMLElement | null
     if (!el) return
-    const { w: viewW, h: viewH } = getStageMetrics()
+    const { w: viewW, h: viewH } = getStageElementSize()
     const metrics = await this.getImmersiveImageMetrics(parentId)
     const resolved = { ...poi, coordSpace: 'image' as const }
     if (metrics) {
@@ -435,7 +441,6 @@ export class PoiManager {
         this.engine.state === 'idle' &&
         ptIdx === this.engine.currentView
       el.classList.toggle('hidden', !show)
-      if (show) el.style.visibility = ''
       if (!show) {
         el.classList.remove('is-active')
       }
@@ -452,6 +457,7 @@ export class PoiManager {
     }
     this.bindPoiActivate(marker, poi, activate)
     document.body.appendChild(marker)
+    void this.applyChildPinPosition(poi, parentId)
   }
 
   private createPoi(viewIndex: number, poi: PoiDefinition, index = 0) {
@@ -463,6 +469,7 @@ export class PoiManager {
     }
     this.bindPoiActivate(marker, poi, activate)
     document.body.appendChild(marker)
+    void this.applyPinPosition(poi, viewIndex)
   }
 
   private buildPoiMarker(poi: PoiDefinition, index: number) {

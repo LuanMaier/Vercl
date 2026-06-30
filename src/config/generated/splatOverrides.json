@@ -1,13 +1,15 @@
 {
   "version": 1,
   "model": "/media/custom/splat-model.ply",
-  "dockEnabled": false,
+  "dockEnabled": true,
   "limits": {
     "zoomForwardPct": 30,
     "zoomBackwardPct": 30,
     "orbitYawPct": 100,
     "orbitPitchPct": 0
   },
+  "pinFocusZoomPct": 30,
+  "cameraFlightDurationSec": 1,
   "startView": {
     "targetX": 0,
     "targetY": 0,
@@ -18,10 +20,25 @@
   },
   "pins": [
     {
-      "id": "splat-pin-1782832209589",
-      "label": "Pin 1",
-      "yaw": 130.18704650961672,
-      "pitch": 26.802457684068756
+      "id": "splat-pin-1782839692271",
+      "label": "Kids",
+      "x": 0.5651,
+      "y": 0.1205,
+      "z": -0.3244
+    },
+    {
+      "id": "splat-pin-1782839747198",
+      "label": "Sports",
+      "x": -0.0464,
+      "y": 0.1703,
+      "z": 1.5742
+    },
+    {
+      "id": "splat-pin-1782841675737",
+      "label": "Interior",
+      "x": 0.0148,
+      "y": 0.1357,
+      "z": -0.6873
     }
   ]
 }

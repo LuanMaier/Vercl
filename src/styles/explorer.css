@@ -1857,25 +1857,98 @@ body.is-playing .poi-card {
   display: none;
 }
 
-.stage-splat-pins {
+.stage-splat-pins,
+.splat-pins-layer {
   position: absolute;
   inset: 0;
   z-index: 3;
   pointer-events: none;
 }
 
-.stage-splat-pins .splat-pin {
-  pointer-events: auto;
+.splat-css2d-layer {
+  overflow: visible !important;
+}
+
+.splat-css2d-layer .splat-css2d-pin {
   position: absolute;
-  transform: translate(-50%, -50%);
+  pointer-events: auto;
 }
 
-.stage-splat-pins .splat-pin.hidden {
-  display: none;
+/* Pins Gaussian no site — sem position:fixed dos pins de panorâmica */
+.splat-css2d-layer .splat-pin-marker {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 4;
+  animation: poi-enter 0.7s var(--ease) both;
+  animation-delay: var(--poi-delay);
 }
 
-body.interactive-splat-open .poi:not(.splat-pin),
-body.interactive-splat-open .apt-outline-layer {
+.splat-css2d-layer .splat-pin-marker__actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.splat-css2d-layer .splat-pin-marker__btn {
+  pointer-events: auto;
+}
+
+.splat-css2d-layer .splat-pin-marker__name {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  margin-top: 0;
+  width: max-content;
+  transform: translateX(-50%);
+}
+
+.splat-css2d-layer .splat-pin-marker.is-active .splat-pin-marker__name,
+.splat-css2d-layer .splat-pin-marker:hover .splat-pin-marker__name {
+  transform: translateX(-50%) translateY(2px);
+}
+
+.splat-css2d-layer .poi.splat-css2d-pin {
+  position: absolute;
+  transform: none;
+  animation: poi-enter 0.7s var(--ease) both;
+  animation-delay: var(--poi-delay);
+}
+
+.splat-css2d-layer .edit-pin.splat-css2d-pin {
+  position: absolute;
+  transform: none;
+  left: auto;
+  top: auto;
+}
+
+.splat-pins-layer {
+  z-index: 2;
+}
+
+.stage-splat-pins .poi--splat,
+.splat-pins-layer .poi--splat {
+  position: absolute;
+  z-index: 4;
+  animation: none;
+}
+
+.stage-splat-pins .poi--splat:not(.hidden),
+.splat-pins-layer .poi--splat:not(.hidden) {
+  pointer-events: auto;
+}
+
+.stage-splat-pins .poi--splat.hidden,
+.splat-pins-layer .poi--splat.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.interactive-splat-open .poi:not(.poi--splat),
+body.interactive-splat-active .poi:not(.poi--splat),
+body.interactive-splat-open .apt-outline-layer,
+body.interactive-splat-active .apt-outline-layer {
   opacity: 0 !important;
   pointer-events: none !important;
   visibility: hidden !important;
@@ -1940,23 +2013,6 @@ body.interactive-splat-open .apt-outline-layer {
 }
 
 #splat-loading.hidden {
-  display: none;
-}
-
-.splat-pins-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.splat-pins-layer .splat-pin {
-  pointer-events: auto;
-  position: absolute;
-  transform: translate(-50%, -50%);
-}
-
-.splat-pins-layer .splat-pin.hidden {
   display: none;
 }
 
@@ -2863,13 +2919,23 @@ body.is-mobile #track-pts .t-pt {
 }
 
 body.is-mobile .dock-tabs[data-count='4'],
-body.is-mobile #track-pts[data-count='4'] {
+body.is-mobile #track-pts[data-count='4'],
+body.is-mobile .dock-tabs[data-count='5'],
+body.is-mobile #track-pts[data-count='5'] {
   --dock-tab-w: calc((100% - 18px) / 4);
+}
+
+body.is-mobile .dock-tabs[data-count='5'],
+body.is-mobile #track-pts[data-count='5'] {
+  --dock-tab-w: calc((100% - 24px) / 5);
 }
 
 body.is-mobile .dock-tabs[data-count='4'] .dock-tab-label,
 body.is-mobile .dock-tabs[data-count='4'] .t-pt-main .dock-tab-label,
-body.is-mobile #track-pts[data-count='4'] .dock-tab-label {
+body.is-mobile #track-pts[data-count='4'] .dock-tab-label,
+body.is-mobile .dock-tabs[data-count='5'] .dock-tab-label,
+body.is-mobile .dock-tabs[data-count='5'] .t-pt-main .dock-tab-label,
+body.is-mobile #track-pts[data-count='5'] .dock-tab-label {
   font-size: 11px;
   letter-spacing: 0.02em;
 }

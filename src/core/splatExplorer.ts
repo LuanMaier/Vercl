@@ -2,14 +2,11 @@ import type { SplatPinDefinition } from '../config/splatConfig'
 import { resolveMediaPath } from './paths'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
 import { GaussianSplatViewer } from './gaussianSplatViewer'
-import { projectAnglesToClient } from './splatSphereCoords'
 
 export class SplatExplorerModal {
   private viewer: GaussianSplatViewer | null = null
-  private pinsLayer: HTMLElement | null = null
   private pins: SplatPinDefinition[] = []
   private pinClickHandler: ((pin: SplatPinDefinition) => void) | null = null
-  private pinRaf = 0
 
   constructor(
     private modal: HTMLElement,
@@ -33,7 +30,7 @@ export class SplatExplorerModal {
   }
 
   async open(modelRef?: string, pins?: SplatPinDefinition[]) {
-    const { getSplatModelPath, getSplatMovementLimits, getSplatPins, getSplatStartView } = await import('../config/splatConfig')
+    const { getSplatCameraFlightDurationSec, getSplatModelPath, getSplatMovementLimits, getSplatPinFocusZoomPct, getSplatPins, getSplatStartView } = await import('../config/splatConfig')
     const ref = modelRef ?? getSplatModelPath()
     if (!ref) return
 
@@ -45,13 +42,6 @@ export class SplatExplorerModal {
 
     this.teardownViewer()
 
-    if (!this.pinsLayer) {
-      this.pinsLayer = document.createElement('div')
-      this.pinsLayer.className = 'splat-pins-layer'
-      this.box.appendChild(this.pinsLayer)
-    }
-    this.pinsLayer.innerHTML = ''
-
     const src = (await resolveMediaSrc(ref)) ?? resolveMediaPath(ref)
 
     this.viewer = new GaussianSplatViewer({
@@ -60,59 +50,26 @@ export class SplatExplorerModal {
       loadingEl: this.loading,
       movementLimits: getSplatMovementLimits(),
       startView: getSplatStartView() ?? null,
+      explorePins: true,
+      pinFocusZoomPct: getSplatPinFocusZoomPct(),
+      cameraFlightDurationSec: getSplatCameraFlightDurationSec(),
     })
     this.viewer.mount()
 
     const ok = await this.viewer.load(src)
     if (!ok) return
 
-    this.renderPinButtons()
-    this.startPinLoop()
+    this.renderPins()
   }
 
-  private renderPinButtons() {
-    if (!this.pinsLayer) return
-    this.pinsLayer.innerHTML = ''
-    for (const pin of this.pins) {
-      const btn = document.createElement('button')
-      btn.type = 'button'
-      btn.className = 'poi splat-pin'
-      btn.dataset.pinId = pin.id
-      btn.innerHTML = `<span class="poi-label">${pin.label}</span>`
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation()
+  private renderPins() {
+    if (!this.viewer?.isReady()) return
+    this.viewer.setPins(this.pins, {
+      mode: 'explorer',
+      onPinClick: (pin) => {
+        this.viewer?.focusPin(pin)
         this.pinClickHandler?.(pin)
-      })
-      this.pinsLayer!.appendChild(btn)
-    }
-  }
-
-  private startPinLoop() {
-    if (this.pinRaf) cancelAnimationFrame(this.pinRaf)
-    const tick = () => {
-      this.pinRaf = requestAnimationFrame(tick)
-      if (!this.modal.classList.contains('open')) return
-      this.repositionPins()
-    }
-    tick()
-  }
-
-  private repositionPins() {
-    const camera = this.viewer?.getCamera()
-    const layer = this.pinsLayer
-    if (!camera || !layer) return
-    const rect = this.box.getBoundingClientRect()
-    layer.querySelectorAll<HTMLElement>('.splat-pin').forEach((el) => {
-      const pin = this.pins.find((p) => p.id === el.dataset.pinId)
-      if (!pin) return
-      const pos = projectAnglesToClient(camera, rect, pin.yaw, pin.pitch)
-      if (!pos) {
-        el.classList.add('hidden')
-        return
-      }
-      el.classList.remove('hidden')
-      el.style.left = `${pos.x - rect.left}px`
-      el.style.top = `${pos.y - rect.top}px`
+      },
     })
   }
 
@@ -123,10 +80,7 @@ export class SplatExplorerModal {
   }
 
   private teardownViewer() {
-    if (this.pinRaf) cancelAnimationFrame(this.pinRaf)
-    this.pinRaf = 0
     this.viewer?.dispose()
     this.viewer = null
-    this.pinsLayer?.replaceChildren()
   }
 }

@@ -304,6 +304,10 @@ function refreshStageForTab() {
 async function applyAllProjectChanges(opts: { loadFromDisk?: boolean } = {}) {
   const { loadFromDisk = true } = opts
 
+  if (!loadFromDisk) {
+    dockEditor.flushTrackOrderFromPreview()
+  }
+
   const keepTab = activeTab
   const keepView = currentView
   const keepDockView = dockEditor.getSelectedView()
@@ -756,7 +760,10 @@ document.getElementById('btn-menu-finish')!.addEventListener('click', async () =
   try {
     if (!dockEditor.flushCardEdits()) return
     await flushAllPendingMenuMedia()
-    await saveDockToProject(dockState.trackOrder, dockState.viewpoints, { reload: false })
+    const savedOrder = [...dockState.trackOrder]
+    skipNextProjectUpdated = true
+    await saveDockToProject(savedOrder, dockState.viewpoints, { reload: false })
+    dockState.trackOrder = savedOrder
     captureEditBaselines()
     markEditDirty()
     showToast('Menu salvo no projeto')
@@ -1573,6 +1580,7 @@ function commitAllPoisMapViews() {
 async function persistPoisMapToProject() {
   flushActivePinDrag()
   aptPinsEditor.flushActiveDrag()
+  splatEditor.flushActivePinDrag()
   await migrateAllPanoramaPinsBeforeSave()
   commitAllPoisMapViews()
   commitAllChildPoisMaps()
@@ -1709,6 +1717,11 @@ function refreshPoiChildStageIfNeeded(poiId: string) {
 async function resolveViewStageAlignmentSrc(viewIndex: number): Promise<string | null> {
   const pendingHero = pendingHeroByView[viewIndex]
   if (pendingHero) return pendingHero.previewUrl
+
+  if (viewIndex === PANORAMA_VIEW) {
+    const solarSrc = await resolveSolarFrameInitialSrc(viewIndex)
+    if (solarSrc) return solarSrc
+  }
 
   const refs: string[] = []
   const savedHero = getHeroRef(viewIndex)
@@ -3103,9 +3116,12 @@ document.getElementById('btn-save')!.addEventListener('click', async () => {
   const btn = document.getElementById('btn-save') as HTMLButtonElement
   if (btn.disabled) return
   btn.disabled = true
+  skipNextProjectUpdated = true
   try {
+    dockEditor.flushTrackOrderFromPreview()
     flushActivePinDrag()
     aptPinsEditor.flushActiveDrag()
+    splatEditor.flushActivePinDrag()
     await flushAllPendingHero()
     await flushAllPendingPoiMedia()
     await flushAllPendingMenuMedia()
@@ -3118,12 +3134,16 @@ document.getElementById('btn-save')!.addEventListener('click', async () => {
     await persistPoisMapToProject()
     await aptPinsEditor.persist()
     if (!dockEditor.flushCardEdits()) {
+      skipNextProjectUpdated = false
       btn.disabled = false
       return
     }
-    await saveDockToProject(dockState.trackOrder, dockState.viewpoints, { reload: false })
+    const savedOrder = [...dockState.trackOrder]
+    await saveDockToProject(savedOrder, dockState.viewpoints, { reload: false })
+    dockState.trackOrder = savedOrder
     reloadEditorAfterProjectSave()
   } catch (e) {
+    skipNextProjectUpdated = false
     showToast(e instanceof Error ? e.message : 'Use npm run dev')
     btn.disabled = false
     markEditDirty()

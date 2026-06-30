@@ -45,7 +45,6 @@ const apartmentOutlineManager = new ApartmentOutlineManager(engine, (pinId) => {
   apartmentPoiManager.activatePoiById(pinId)
 })
 
-bindTrack(engine, shell.track, poiManager)
 mountInteriorsNav(engine, shell.track)
 mountApartmentsNav(engine, shell.track)
 observeDockTabsLayout(shell.track.querySelector('#track-pts'))
@@ -80,11 +79,8 @@ const splatExplorer = new SplatExplorerModal(
   shell.splatLoading,
 )
 splatExplorer.mount()
-splatExplorer.setPinClickHandler((pin) => {
-  splatExplorer.close()
-  if (pin.targetView != null) {
-    void poiManager.navigateToView(pin.targetView)
-  }
+splatExplorer.setPinClickHandler(() => {
+  /* zoom no pin é feito dentro do modal */
 })
 
 const stageEl = document.getElementById('stage')!
@@ -93,13 +89,8 @@ engine.setSplatStageBridge({
   open: () => splatStage.open(),
   close: () => splatStage.close(),
 })
-splatStage.setPinClickHandler((pin) => {
-  void engine.closeInteractiveSplat().then(() => {
-    if (pin.targetView != null) {
-      void poiManager.navigateToView(pin.targetView)
-    }
-    syncUi(engine, poiManager, apartmentPoiManager)
-  })
+splatStage.setPinClickHandler(() => {
+  /* zoom no pin é feito dentro do stage */
 })
 
 engine.subscribe(() => syncUi(engine, poiManager, apartmentPoiManager))

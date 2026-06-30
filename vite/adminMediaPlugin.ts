@@ -60,6 +60,7 @@ const POIS_PUBLIC_JSON = 'public/config/poisOverrides.json'
 const SPLAT_JSON = 'src/config/generated/splatOverrides.json'
 const SPLAT_PUBLIC_JSON = 'public/config/splatOverrides.json'
 const POINTS_JSON = 'src/config/generated/pointsOverrides.json'
+const POINTS_PUBLIC_JSON = 'public/config/pointsOverrides.json'
 
 function readJson<T>(filePath: string, fallback: T): T {
   try {
@@ -80,8 +81,84 @@ function writeApartmentPoisJson(rootDir: string, data: unknown) {
 }
 
 function writePoisJson(rootDir: string, data: unknown) {
-  writeJson(path.join(rootDir, POIS_JSON), data)
-  writeJson(path.join(rootDir, POIS_PUBLIC_JSON), data)
+  const root = rootDir
+  const existing = readJson<{ version: 1; byView?: Record<string, unknown[]>; byParent?: Record<string, unknown[]> }>(
+    path.join(root, POIS_JSON),
+    { version: 1, byView: {} },
+  )
+  const incoming = data as { version: 1; byView?: Record<string, unknown[]>; byParent?: Record<string, unknown[]> }
+  const mergedByView: Record<string, unknown[]> = { ...(existing.byView ?? {}) }
+  for (const [key, list] of Object.entries(incoming.byView ?? {})) {
+    if (Array.isArray(list) && list.length > 0) mergedByView[key] = list
+  }
+  for (const [key, list] of Object.entries(existing.byView ?? {})) {
+    if (!Array.isArray(list) || list.length === 0) continue
+    const next = mergedByView[key]
+    if (!Array.isArray(next) || next.length === 0) mergedByView[key] = list
+  }
+  const mergedByParent: Record<string, unknown[]> = { ...(existing.byParent ?? {}) }
+  for (const [key, list] of Object.entries(incoming.byParent ?? {})) {
+    if (Array.isArray(list) && list.length > 0) mergedByParent[key] = list
+  }
+  for (const [key, list] of Object.entries(existing.byParent ?? {})) {
+    if (!Array.isArray(list) || list.length === 0) continue
+    const next = mergedByParent[key]
+    if (!Array.isArray(next) || next.length === 0) mergedByParent[key] = list
+  }
+  const merged = {
+    ...incoming,
+    byView: mergedByView,
+    ...(Object.keys(mergedByParent).length ? { byParent: mergedByParent } : {}),
+  }
+  writeJson(path.join(root, POIS_JSON), merged)
+  writeJson(path.join(root, POIS_PUBLIC_JSON), merged)
+}
+
+function writePointsJson(rootDir: string, data: unknown) {
+  const root = rootDir
+  const existing = readJson<{
+    version: 1
+    trackOrder?: number[]
+    viewpoints?: Record<string, unknown>
+    customViews?: Record<string, unknown>
+    removedViews?: number[]
+  }>(path.join(root, POINTS_JSON), { version: 1 })
+  const incoming = data as {
+    version: 1
+    trackOrder?: number[]
+    viewpoints?: Record<string, unknown>
+    customViews?: Record<string, unknown>
+    removedViews?: number[]
+  }
+  const hasIncomingOrder = Array.isArray(incoming.trackOrder) && incoming.trackOrder.length > 0
+  const mergedOrder = hasIncomingOrder
+    ? [...incoming.trackOrder!]
+    : [...(existing.trackOrder ?? [])]
+  if (hasIncomingOrder) {
+    for (const idx of existing.trackOrder ?? []) {
+      if (mergedOrder.includes(idx)) continue
+      mergedOrder.push(idx)
+    }
+  }
+  const mergedViewpoints = { ...(existing.viewpoints ?? {}), ...(incoming.viewpoints ?? {}) }
+  for (const key of Object.keys(existing.viewpoints ?? {})) {
+    if (!incoming.viewpoints?.[key] && existing.viewpoints?.[key]) {
+      mergedViewpoints[key] = existing.viewpoints[key]
+    }
+  }
+  const mergedCustomViews = {
+    ...(existing.customViews ?? {}),
+    ...(incoming.customViews ?? {}),
+  }
+  const merged = {
+    version: 1 as const,
+    trackOrder: mergedOrder,
+    viewpoints: Object.keys(mergedViewpoints).length ? mergedViewpoints : undefined,
+    customViews: Object.keys(mergedCustomViews).length ? mergedCustomViews : undefined,
+    removedViews: incoming.removedViews ?? existing.removedViews,
+  }
+  writeJson(path.join(root, POINTS_JSON), merged)
+  writeJson(path.join(root, POINTS_PUBLIC_JSON), merged)
 }
 
 function loadSplat(root: string) {
@@ -628,7 +705,7 @@ export function adminMediaPlugin(): Plugin {
           if (pathname === '/api/admin/save-points' && req.method === 'POST') {
             const body = await readBody(req)
             const parsed = JSON.parse(body.toString('utf8'))
-            writeJson(path.join(root, POINTS_JSON), parsed)
+            writePointsJson(root, parsed)
             sendJson(res, 200, { ok: true })
             return
           }
@@ -684,7 +761,7 @@ export function adminMediaPlugin(): Plugin {
             writeJson(path.join(root, MEDIA_JSON), { ...EMPTY_MEDIA })
             writeJson(path.join(root, POIS_JSON), { version: 1, byView: {} })
             writeJson(path.join(root, POIS_PUBLIC_JSON), { version: 1, byView: {} })
-            writeJson(path.join(root, POINTS_JSON), { version: 1 })
+            writePointsJson(root, { version: 1 })
             writeJson(path.join(root, INTERIORS_JSON), { version: 1 })
             writeJson(path.join(root, APARTMENTS_JSON), { version: 1 })
             writeJson(path.join(root, APARTMENT_POIS_JSON), { version: 1, byApartment: {} })
