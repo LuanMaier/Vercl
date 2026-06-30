@@ -8,7 +8,7 @@
     "orbitYawPct": 100,
     "orbitPitchPct": 0
   },
-  "pinFocusZoomPct": 30,
+  "pinFocusZoomPct": 100,
   "cameraFlightDurationSec": 1,
   "startView": {
     "targetX": 0,

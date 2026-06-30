@@ -1525,6 +1525,19 @@ body.is-playing .interior-book {
   }
 }
 
+/* Igual ao poi-enter, mas sem translate(-50%,-50%) — usado em filhos que não
+   carregam a posição do CSS2DRenderer (ver .splat-pin-marker__actions). */
+@keyframes splat-pin-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes poi-float {
   0%,
   100% {
@@ -1874,13 +1887,18 @@ body.is-playing .poi-card {
   pointer-events: auto;
 }
 
-/* Pins Gaussian no site — sem position:fixed dos pins de panorâmica */
+/*
+ * Pins Gaussian no site — sem position:fixed dos pins de panorâmica.
+ * IMPORTANTE: o CSS2DRenderer posiciona o pin via `transform` inline (translate
+ * calculado a cada frame a partir da posição 3D). Uma `animation` que também
+ * anima `transform` neste mesmo elemento vence a cascata e prende o pin no
+ * keyframe final, ignorando a posição real — por isso o efeito de entrada fica
+ * no `__actions` (filho), nunca no `.splat-pin-marker` em si.
+ */
 .splat-css2d-layer .splat-pin-marker {
   position: absolute;
   pointer-events: auto;
   z-index: 4;
-  animation: poi-enter 0.7s var(--ease) both;
-  animation-delay: var(--poi-delay);
 }
 
 .splat-css2d-layer .splat-pin-marker__actions {
@@ -1888,7 +1906,11 @@ body.is-playing .poi-card {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 52px;
+  height: 52px;
   pointer-events: none;
+  animation: splat-pin-enter 0.7s var(--ease) both;
+  animation-delay: var(--poi-delay);
 }
 
 .splat-css2d-layer .splat-pin-marker__btn {
@@ -1907,13 +1929,6 @@ body.is-playing .poi-card {
 .splat-css2d-layer .splat-pin-marker.is-active .splat-pin-marker__name,
 .splat-css2d-layer .splat-pin-marker:hover .splat-pin-marker__name {
   transform: translateX(-50%) translateY(2px);
-}
-
-.splat-css2d-layer .poi.splat-css2d-pin {
-  position: absolute;
-  transform: none;
-  animation: poi-enter 0.7s var(--ease) both;
-  animation-delay: var(--poi-delay);
 }
 
 .splat-css2d-layer .edit-pin.splat-css2d-pin {

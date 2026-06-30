@@ -1559,6 +1559,7 @@ export class ExplorerEngine {
   openInteriorsPanel() {
     if (this.state === 'playing') return
     void (async () => {
+      await this.closeInteractiveSplat()
       await this.closeApartmentsPanel()
       if (this.state === 'playing') return
       this.interiorsPanelOpen = true
@@ -1611,6 +1612,7 @@ export class ExplorerEngine {
   openApartmentsPanel() {
     if (this.state === 'playing') return
     void (async () => {
+      await this.closeInteractiveSplat()
       await this.closeInteriorsPanel()
       if (this.state === 'playing') return
       this.clearLightSliderFrame()

@@ -9,7 +9,7 @@ import {
 } from '../config/splatConfig'
 import { resolveMediaPath } from './paths'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
-import { GaussianSplatViewer } from './gaussianSplatViewer'
+import type { GaussianSplatViewer } from './gaussianSplatViewer'
 
 export class SplatStage {
   private viewer: GaussianSplatViewer | null = null
@@ -64,6 +64,9 @@ export class SplatStage {
     this.loadingEl.classList.remove('hidden')
 
     this.viewer?.dispose()
+    // Carregado sob demanda: evita baixar Spark/Three (~1,8 MB gzip) em todo
+    // carregamento do site, já que só é usado ao abrir o hub Interativo.
+    const { GaussianSplatViewer } = await import('./gaussianSplatViewer')
     this.viewer = new GaussianSplatViewer({
       host: this.layer,
       canvas: this.canvas,

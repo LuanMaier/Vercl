@@ -22,6 +22,17 @@ export default defineConfig({
   plugins: [adminMediaPlugin(), ignoreGeneratedConfigHmr()],
   build: {
     sourcemap: false,
+    modulePreload: {
+      resolveDependencies: (_filename, deps, { hostId }) => {
+        // O Gaussian Splat (spark + gaussianSplatViewer) só é necessário se o
+        // visitante abrir o hub "Interativo" — não precarregar no site público
+        // evita baixar ~1,8 MB (gzip) em toda visita que nunca usa o splat.
+        if (hostId.endsWith('index.html')) {
+          return deps.filter((d) => !d.includes('vendor-spark') && !d.includes('edit-splat'))
+        }
+        return deps
+      },
+    },
     rollupOptions: {
       input: {
         main: path.resolve(root, 'index.html'),
@@ -32,6 +43,11 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('@sparkjsdev/spark')) return 'vendor-spark'
           if (id.includes('node_modules/three')) return 'vendor-three'
+          // Utilitários usados tanto pelo site (index.html) quanto pelo editor
+          // (edit.html). Sem um bucket próprio, o Rollup às vezes funde esse
+          // código compartilhado dentro de um chunk "edit-*" qualquer, o que
+          // força o site público a baixar/precarregar bundles do editor.
+          if (id.includes('/src/media/') || id.includes('/core/paths')) return 'shared-media'
           if (id.includes('/edit/bookEditor')) return 'edit-book'
           if (
             id.includes('/edit/apartmentsEditor') ||

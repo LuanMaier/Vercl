@@ -243,6 +243,7 @@ export function mountApartmentFilterPanel(engine: ExplorerEngine): () => void {
 
   function updateVisibility() {
     const inContext =
+      !engine.interactiveSplatOpen &&
       engine.apartmentsPanelOpen &&
       Boolean(engine.activeApartmentId) &&
       engine.state === 'idle' &&

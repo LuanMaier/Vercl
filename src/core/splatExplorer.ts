@@ -1,7 +1,7 @@
 import type { SplatPinDefinition } from '../config/splatConfig'
 import { resolveMediaPath } from './paths'
 import { resolveMediaSrc } from '../media/resolvePoiMedia'
-import { GaussianSplatViewer } from './gaussianSplatViewer'
+import type { GaussianSplatViewer } from './gaussianSplatViewer'
 
 export class SplatExplorerModal {
   private viewer: GaussianSplatViewer | null = null
@@ -43,6 +43,9 @@ export class SplatExplorerModal {
     this.teardownViewer()
 
     const src = (await resolveMediaSrc(ref)) ?? resolveMediaPath(ref)
+    // Carregado sob demanda: evita baixar Spark/Three (~1,8 MB gzip) em todo
+    // carregamento do site, já que só é usado ao abrir este modal.
+    const { GaussianSplatViewer } = await import('./gaussianSplatViewer')
 
     this.viewer = new GaussianSplatViewer({
       host: this.box,
