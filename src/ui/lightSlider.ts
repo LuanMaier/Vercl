@@ -62,17 +62,8 @@ function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
   })
 }
 
-async function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
-  const rvfc = (
-    video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }
-  ).requestVideoFrameCallback
-  if (typeof rvfc === 'function') {
-    await new Promise<void>((resolve) => {
-      rvfc.call(video, () => resolve())
-    })
-    return
-  }
-  await new Promise<void>((resolve) => {
+function afterSeekFrame(): Promise<void> {
+  return new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
   })
 }
@@ -83,11 +74,10 @@ async function primeVideoForScrub(video: HTMLVideoElement): Promise<boolean> {
     video.muted = true
     await video.play()
   } catch {
-    /* iOS pode exigir gesto */
+    /* iOS pode exigir gesto — seek ainda funciona após loadeddata */
   }
   video.pause()
   await seekToTime(video, 0)
-  await waitForVideoFrame(video)
   return video.readyState >= 2 && video.videoWidth > 0
 }
 
@@ -109,9 +99,9 @@ function mountSolarVideoElement(): HTMLVideoElement {
     return video
   }
 
-  /* Desktop: off-screen — decode + canvas draw estável no Chrome */
+  /* Desktop: fora da tela mas com tamanho real — decode→canvas estável no Chrome */
   video.style.cssText =
-    'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;visibility:hidden'
+    'position:fixed;left:0;top:0;width:640px;height:360px;opacity:0;pointer-events:none;z-index:-1;visibility:hidden'
   document.body.appendChild(video)
   return video
 }
@@ -211,7 +201,7 @@ export function mountLightSlider(
     const t = progress * video.duration
     await seekToTime(video, t)
     if (token !== scrubToken) return false
-    await waitForVideoFrame(video)
+    await afterSeekFrame()
     if (token !== scrubToken || !video.videoWidth) return false
 
     hideTransitionVideos()
@@ -330,10 +320,6 @@ export function mountLightSlider(
     if (!loaded) {
       loadedView = -1
       return false
-    }
-
-    if (!isMobileViewport()) {
-      await ensureVideoPrimed()
     }
 
     maybeRestoreHeldFrame()

@@ -149,7 +149,7 @@ export class ExplorerEngine {
     this.videoPlayer?.cancel()
     this.videoPlayer?.stopLoop()
     this.canvas.classList.remove('hidden')
-    this.drawFrame(video)
+    this.drawFrame(video, 0, STILL_VIEW_IMAGE_FIT)
   }
 
   /** Frame pré-cacheada do slider (scrub fluido). */
@@ -427,6 +427,10 @@ export class ExplorerEngine {
   }
 
   private async showIdle(viewIndex: number) {
+    if (isPanoramaView(viewIndex) && this.lightSliderFrameHeld) {
+      return
+    }
+
     this.videoPlayer?.stopLoop()
 
     if (isPanoramaView(viewIndex)) {
@@ -581,9 +585,21 @@ export class ExplorerEngine {
       this.state = 'idle'
       this.emit()
       if (this.holdPoiEndFrame || this.holdMenuTransitionFrame) {
+        const menuHold = this.holdMenuTransitionFrame
         this.holdPoiEndFrame = false
         this.holdMenuTransitionFrame = false
         prefetchForView(this.currentView, this.videoPlayer ?? undefined)
+        const needsPanoramaIdle =
+          menuHold &&
+          isPanoramaView(this.currentView) &&
+          !this.videoPlayer?.isLooping()
+        if (needsPanoramaIdle) {
+          void (async () => {
+            await this.showIdle(this.currentView)
+            void this.finishSceneFadeReveal()
+          })()
+          return
+        }
         void this.finishSceneFadeReveal()
         return
       }
@@ -650,6 +666,7 @@ export class ExplorerEngine {
   /** Chamado pelo menu antes de trocar de vista — descarta estado de pin. */
   resetForMenuNavigation() {
     this.resetPinExperience()
+    this.clearLightSliderFrame()
   }
 
   /** Limpa experiência de pin — menu sempre volta à cena do botão. */
@@ -799,6 +816,9 @@ export class ExplorerEngine {
 
   private beginJumpTo(target: number, options?: JumpOptions) {
     const from = this.currentView
+    if (target !== from) {
+      this.clearLightSliderFrame()
+    }
     const menuNav = Boolean(options?.menuFade)
     if (!menuNav && options?.immersivePoiId) {
       this.rememberImmersiveReturnView(from)
@@ -1496,9 +1516,12 @@ export class ExplorerEngine {
 
   openInteriorsPanel() {
     if (this.state === 'playing') return
-    void this.closeApartmentsPanel()
-    this.interiorsPanelOpen = true
-    this.emit()
+    void (async () => {
+      await this.closeApartmentsPanel()
+      if (this.state === 'playing') return
+      this.interiorsPanelOpen = true
+      this.emit()
+    })()
   }
 
   closeInteriorsPanel(): Promise<void> {
@@ -1508,11 +1531,15 @@ export class ExplorerEngine {
     this.activeInteriorId = null
     this.interiorBookOpen = false
     this.interiorBookPageIndex = 0
+    if (hadInterior && isPanoramaView(this.currentView)) {
+      this.clearLightSliderFrame()
+    }
     this.emit()
     if (hadInterior && this.state === 'idle') {
       return this.closeInteriorWithFade()
     }
     if (this.state === 'idle') {
+      this.clearLightSliderFrame()
       return this.showIdle(this.currentView).then(() => undefined)
     }
     return Promise.resolve()
@@ -1522,6 +1549,7 @@ export class ExplorerEngine {
     await interiorFade.cover()
     this.cancelPlayback()
     this.videoPlayer?.stopLoop()
+    this.clearLightSliderFrame()
     await this.showIdle(this.currentView)
     await interiorFade.reveal()
   }
@@ -1540,12 +1568,16 @@ export class ExplorerEngine {
 
   openApartmentsPanel() {
     if (this.state === 'playing') return
-    void this.closeInteriorsPanel()
-    this.apartmentFaceReady = false
-    this.apartmentsPanelOpen = true
-    this.activeApartmentId = getFacadeApartmentId()
-    this.emit()
-    void this.presentCrmFacade()
+    void (async () => {
+      await this.closeInteriorsPanel()
+      if (this.state === 'playing') return
+      this.clearLightSliderFrame()
+      this.apartmentFaceReady = false
+      this.apartmentsPanelOpen = true
+      this.activeApartmentId = getFacadeApartmentId()
+      this.emit()
+      await this.presentCrmFacade()
+    })()
   }
 
   /** Exibe a fachada CRM compartilhada (imagem da unidade-fachada). */
@@ -1569,11 +1601,15 @@ export class ExplorerEngine {
     this.apartmentsPanelOpen = false
     this.activeApartmentId = null
     this.apartmentFaceReady = false
+    if (hadApartment && isPanoramaView(this.currentView)) {
+      this.clearLightSliderFrame()
+    }
     this.emit()
     if (hadApartment && this.state === 'idle') {
       return this.closeApartmentWithFade()
     }
     if (this.state === 'idle') {
+      this.clearLightSliderFrame()
       return this.showIdle(this.currentView).then(() => undefined)
     }
     return Promise.resolve()
@@ -1583,6 +1619,7 @@ export class ExplorerEngine {
     await interiorFade.cover()
     this.cancelPlayback()
     this.videoPlayer?.stopLoop()
+    this.clearLightSliderFrame()
     await this.showIdle(this.currentView)
     await interiorFade.reveal()
   }

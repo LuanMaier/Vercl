@@ -47,9 +47,9 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    strictPort: false,
+    strictPort: true,
     host: true,
-    open: false,
+    open: '/',
     watch: {
       ignored: [generatedConfigDir],
     },

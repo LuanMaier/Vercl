@@ -19,8 +19,8 @@ if not exist "node_modules\" (
   call npm install
   if errorlevel 1 (
     echo.
-  echo [ERRO] Falha ao instalar dependencias.
-  echo.
+    echo [ERRO] Falha ao instalar dependencias.
+    echo.
     pause
     exit /b 1
   )
@@ -31,10 +31,11 @@ echo ========================================
 echo   MVP Site Interativo - modo desenvolvimento
 echo ========================================
 echo.
-echo   Site:   http://localhost:5174/
-echo   Editor: http://localhost:5174/edit.html
+echo   Site:    http://localhost:5174/
+echo   Preview: http://localhost:5174/preview-dual.html
+echo   Editor:  http://localhost:5174/edit.html
 echo.
-echo   Deixe esta janela aberta enquanto editar.
+echo   Deixe esta janela aberta enquanto usar o site.
 echo   Para parar: feche a janela ou pressione Ctrl+C
 echo.
 echo ========================================
