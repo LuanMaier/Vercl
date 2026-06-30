@@ -25,10 +25,8 @@
         "title": "Parque",
         "desc": "Descrição do ponto de interesse.",
         "positionLocked": true,
-        "transitionVideo": "/media/custom/poi-v0-parque-trans.mp4",
-        "img": "/images/custom/poi-v0-parque.png",
         "coordSpace": "image",
-        "cardMediaMode": "loop"
+        "cardMediaMode": "loop-direct"
       },
       {
         "id": "v0-kids",
