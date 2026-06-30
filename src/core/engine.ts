@@ -172,6 +172,7 @@ export class ExplorerEngine {
     this.resize()
     this.cancelPlayback()
     this.videoPlayer?.cancel()
+    this.videoPlayer?.stopLoop()
     this.canvas.classList.remove('hidden')
     this.drawFrame(img, 0, fit)
   }

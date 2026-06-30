@@ -1173,16 +1173,7 @@ body.is-playing .interior-book {
   filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.2));
 }
 
-#mood-bar.light-slider--loading #mood-bar.light-slider--loading .light-slider {
-  opacity: 0.55;
-  cursor: wait;
-}
-
-#mood-bar.light-slider--loading .light-slider::-webkit-slider-thumb {
-  cursor: wait;
-}
-
-.light-slider {
+#mood-bar.light-slider--loading .light-slider {
   opacity: 0.55;
   cursor: wait;
 }
