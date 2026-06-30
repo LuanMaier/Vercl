@@ -10,6 +10,10 @@ export function createShell(): {
   panoCanvas: HTMLCanvasElement
   panoBox: HTMLElement
   panoLoading: HTMLElement
+  splatModal: HTMLElement
+  splatCanvas: HTMLCanvasElement
+  splatBox: HTMLElement
+  splatLoading: HTMLElement
 } {
   document.body.innerHTML = `
     <div id="stage">
@@ -54,6 +58,13 @@ export function createShell(): {
         <canvas id="pano-canvas"></canvas>
       </div>
     </div>
+    <div id="splat-modal" aria-hidden="true">
+      <div id="splat-modal-box">
+        <button type="button" data-splat-close aria-label="Fechar Gaussian Splat">×</button>
+        <div id="splat-loading">Carregando Gaussian Splat…</div>
+        <canvas id="splat-canvas"></canvas>
+      </div>
+    </div>
   `
 
   return {
@@ -67,5 +78,9 @@ export function createShell(): {
     panoCanvas: document.getElementById('pano-canvas') as HTMLCanvasElement,
     panoBox: document.getElementById('pano-modal-box')!,
     panoLoading: document.getElementById('pano-loading')!,
+    splatModal: document.getElementById('splat-modal')!,
+    splatCanvas: document.getElementById('splat-canvas') as HTMLCanvasElement,
+    splatBox: document.getElementById('splat-modal-box')!,
+    splatLoading: document.getElementById('splat-loading')!,
   }
 }

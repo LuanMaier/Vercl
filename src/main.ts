@@ -1,6 +1,7 @@
 import './styles/explorer.css'
 import { ExplorerEngine } from './core/engine'
 import { Panorama360 } from './core/panorama360'
+import { SplatExplorerModal } from './core/splatExplorer'
 import { PoiManager } from './core/poiManager'
 import { ApartmentPoiManager } from './core/apartmentPoiManager'
 import { ApartmentOutlineManager } from './core/apartmentOutlineManager'
@@ -70,6 +71,20 @@ new Panorama360(
   shell.panoBox,
   shell.panoLoading,
 ).mount()
+
+const splatExplorer = new SplatExplorerModal(
+  shell.splatModal,
+  shell.splatBox,
+  shell.splatCanvas,
+  shell.splatLoading,
+)
+splatExplorer.mount()
+splatExplorer.setPinClickHandler((pin) => {
+  splatExplorer.close()
+  if (pin.targetView != null) {
+    void poiManager.navigateToView(pin.targetView)
+  }
+})
 
 engine.subscribe(() => syncUi(engine, poiManager, apartmentPoiManager))
 

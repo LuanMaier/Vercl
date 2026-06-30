@@ -5,7 +5,7 @@ import type { ApartmentPoisEditorState } from './apartmentPinsEditor'
 import type { ApartmentOutlinesEditorState } from '../config/apartmentOutlinesConfig'
 import type { PoiDefinition } from '../core/types'
 
-export type EditTab = 'scene' | 'poi' | 'insolation' | 'menu' | 'book' | 'apartments'
+export type EditTab = 'scene' | 'poi' | 'insolation' | 'menu' | 'book' | 'apartments' | 'splat'
 
 type Baselines = {
   pois: string
@@ -14,6 +14,7 @@ type Baselines = {
   apartments: string
   apartmentPois: string
   apartmentOutlines: string
+  splat: string
 }
 
 let baselines: Baselines = {
@@ -23,6 +24,7 @@ let baselines: Baselines = {
   apartments: '',
   apartmentPois: '',
   apartmentOutlines: '',
+  splat: '',
 }
 
 type DirtyProbe = {
@@ -39,6 +41,8 @@ type DirtyProbe = {
   hasPendingApartmentMedia: () => boolean
   hasPendingApartmentPinMedia: () => boolean
   hasInsolationPending: () => boolean
+  splatState: () => import('../config/splatConfig').SplatOverridesFile
+  hasPendingSplatPly: () => boolean
 }
 
 let probe: DirtyProbe | null = null
@@ -74,6 +78,7 @@ export function captureEditBaselines() {
     apartments: probeJson(probe.apartmentsState, '[]'),
     apartmentPois: probeJson(probe.apartmentPoisState, '{}'),
     apartmentOutlines: probeJson(probe.apartmentOutlinesState, '{}'),
+    splat: probeJson(probe.splatState, '{}'),
   }
 }
 
@@ -104,13 +109,18 @@ export function isTabDirty(tab: EditTab): boolean {
         probeBool(probe.hasPendingApartmentMedia) ||
         probeBool(probe.hasPendingApartmentPinMedia)
       )
+    case 'splat':
+      return (
+        probeJson(probe.splatState, '{}') !== baselines.splat ||
+        probeBool(probe.hasPendingSplatPly)
+      )
     default:
       return false
   }
 }
 
 export function isAnyTabDirty(): boolean {
-  return (['scene', 'poi', 'insolation', 'menu', 'book', 'apartments'] as EditTab[]).some(
+  return (['scene', 'poi', 'insolation', 'menu', 'book', 'apartments', 'splat'] as EditTab[]).some(
     isTabDirty,
   )
 }

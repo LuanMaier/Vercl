@@ -532,6 +532,8 @@ export async function reloadProjectFiles() {
   await reloadApartmentsOverrides()
   await reloadApartmentPoisOverrides()
   await reloadApartmentOutlinesOverrides()
+  const { reloadSplatOverrides } = await import('./splatConfig')
+  await reloadSplatOverrides()
 }
 
 export const APARTMENT_POIS_VERSION_KEY = 'explorer-apartment-pois-version'

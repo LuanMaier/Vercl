@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "model": "/media/custom/splat-model.ply",
+  "pins": [
+    {
+      "id": "splat-pin-1782832209589",
+      "label": "Pin 1",
+      "yaw": 130.18704650961672,
+      "pitch": 26.802457684068756
+    }
+  ]
+}

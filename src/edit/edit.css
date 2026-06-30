@@ -2279,3 +2279,58 @@ label.edit-btn {
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ── Gaussian Splat (editor stage) ── */
+.edit-splat-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #0d0d0b;
+}
+
+.edit-splat-stage[hidden] {
+  display: none !important;
+}
+
+.edit-splat-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.edit-splat-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.edit-splat-loading.hidden {
+  display: none;
+}
+
+.edit-splat-pins {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.edit-splat-pin {
+  pointer-events: auto;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+body.edit-splat-tab #edit-bg-scene,
+body.edit-splat-tab #edit-bg-scene-backdrop,
+body.edit-splat-tab #edit-bg-facade {
+  visibility: hidden !important;
+}

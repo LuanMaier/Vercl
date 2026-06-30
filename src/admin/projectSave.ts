@@ -47,6 +47,7 @@ export type SaveMediaKind =
   | 'solar-frame-initial'
   | 'solar-frame-final'
   | 'view-loop'
+  | 'splat-ply'
 
 function extFromFile(file: File | Blob) {
   const name = file instanceof File ? file.name : ''
@@ -57,6 +58,7 @@ function extFromFile(file: File | Blob) {
   if (file.type === 'application/pdf') return 'pdf'
   if (file.type === 'video/webm') return 'webm'
   if (file.type === 'video/mp4') return 'mp4'
+  if (fromName === 'ply') return 'ply'
   return 'jpg'
 }
 
@@ -287,6 +289,24 @@ export async function savePoisMapToProject(
   if (!res.ok) throw new Error('Falha ao salvar pins no projeto')
   if (opts?.reload !== true) {
     applyPoisOverridesFile(payload)
+    notifyProjectUpdated()
+  }
+  await afterProjectPersist(opts)
+}
+
+export async function saveSplatsToProject(
+  payload: import('../config/splatConfig').SplatOverridesFile,
+  opts?: SaveProjectOpts,
+): Promise<void> {
+  const res = await fetch('/api/admin/save-splats', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error('Falha ao salvar splat no projeto')
+  if (opts?.reload !== true) {
+    const { applySplatOverridesFile } = await import('../config/splatConfig')
+    applySplatOverridesFile(payload)
     notifyProjectUpdated()
   }
   await afterProjectPersist(opts)

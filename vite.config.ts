@@ -30,6 +30,7 @@ export default defineConfig({
       },
       output: {
         manualChunks(id) {
+          if (id.includes('@sparkjsdev/spark')) return 'vendor-spark'
           if (id.includes('node_modules/three')) return 'vendor-three'
           if (id.includes('/edit/bookEditor')) return 'edit-book'
           if (
@@ -41,6 +42,9 @@ export default defineConfig({
           }
           if (id.includes('/edit/dockEditor')) return 'edit-dock'
           if (id.includes('/edit/insolationPanel')) return 'edit-insolation'
+          if (id.includes('/edit/splatEditor') || id.includes('/core/gaussianSplatViewer')) {
+            return 'edit-splat'
+          }
         },
       },
     },
@@ -58,5 +62,8 @@ export default defineConfig({
     port: 4174,
     strictPort: false,
     host: true,
+  },
+  optimizeDeps: {
+    include: ['three', '@sparkjsdev/spark'],
   },
 })

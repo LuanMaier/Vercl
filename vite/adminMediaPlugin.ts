@@ -57,6 +57,8 @@ const APARTMENT_POIS_PUBLIC_JSON = 'public/config/apartmentPoisOverrides.json'
 const APARTMENT_OUTLINES_JSON = 'src/config/generated/apartmentOutlinesOverrides.json'
 const POIS_JSON = 'src/config/generated/poisOverrides.json'
 const POIS_PUBLIC_JSON = 'public/config/poisOverrides.json'
+const SPLAT_JSON = 'src/config/generated/splatOverrides.json'
+const SPLAT_PUBLIC_JSON = 'public/config/splatOverrides.json'
 const POINTS_JSON = 'src/config/generated/pointsOverrides.json'
 
 function readJson<T>(filePath: string, fallback: T): T {
@@ -80,6 +82,15 @@ function writeApartmentPoisJson(rootDir: string, data: unknown) {
 function writePoisJson(rootDir: string, data: unknown) {
   writeJson(path.join(rootDir, POIS_JSON), data)
   writeJson(path.join(rootDir, POIS_PUBLIC_JSON), data)
+}
+
+function loadSplat(root: string) {
+  return readJson(path.join(root, SPLAT_JSON), { version: 1, model: null, pins: [] })
+}
+
+function writeSplatJson(rootDir: string, data: unknown) {
+  writeJson(path.join(rootDir, SPLAT_JSON), data)
+  writeJson(path.join(rootDir, SPLAT_PUBLIC_JSON), data)
 }
 
 function syncApartmentPoisMirror(rootDir: string) {
@@ -370,6 +381,17 @@ export function adminMediaPlugin(): Plugin {
               }
               if (!data.apartmentMedia) data.apartmentMedia = {}
               data.apartmentMedia[key] = publicPath
+            } else if (kind === 'splat-ply') {
+              const filename = `splat-model.${ext}`
+              diskPath = path.join(root, CUSTOM_VID, filename)
+              publicPath = `/media/custom/${filename}`
+              fs.mkdirSync(path.dirname(diskPath), { recursive: true })
+              fs.writeFileSync(diskPath, body)
+              const splatData = loadSplat(root)
+              splatData.model = publicPath
+              writeSplatJson(root, splatData)
+              sendJson(res, 200, { path: publicPath })
+              return
             } else {
               throw new Error('kind inválido')
             }
@@ -539,6 +561,17 @@ export function adminMediaPlugin(): Plugin {
                 const disk = path.join(root, 'public', p.slice(1))
                 if (fs.existsSync(disk)) fs.unlinkSync(disk)
               }
+            } else if (kind === 'splat-ply') {
+              const splatData = loadSplat(root)
+              const p = splatData.model
+              splatData.model = null
+              if (typeof p === 'string' && p.startsWith('/media/custom/')) {
+                const disk = path.join(root, 'public', p.slice(1))
+                if (fs.existsSync(disk)) fs.unlinkSync(disk)
+              }
+              writeSplatJson(root, splatData)
+              sendJson(res, 200, { ok: true })
+              return
             }
 
             writeJson(path.join(root, MEDIA_JSON), data)
@@ -580,6 +613,14 @@ export function adminMediaPlugin(): Plugin {
             const body = await readBody(req)
             const parsed = JSON.parse(body.toString('utf8'))
             writePoisJson(root, parsed)
+            sendJson(res, 200, { ok: true })
+            return
+          }
+
+          if (pathname === '/api/admin/save-splats' && req.method === 'POST') {
+            const body = await readBody(req)
+            const parsed = JSON.parse(body.toString('utf8'))
+            writeSplatJson(root, parsed)
             sendJson(res, 200, { ok: true })
             return
           }

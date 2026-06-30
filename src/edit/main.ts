@@ -71,6 +71,13 @@ import {
   type EditTab,
 } from './editDirtyState'
 import {
+  flushPendingSplatPly,
+  getEditableSplatStateFromConfig,
+  hasPendingSplatPly,
+  initSplatEditor,
+} from './splatEditor'
+import type { SplatOverridesFile } from '../config/splatConfig'
+import {
   cloneDockState,
   flushAllPendingMenuMedia,
   hasPendingMenuVideos,
@@ -255,6 +262,16 @@ function setAptSubtab(sub: AptSubtab) {
 }
 
 function refreshStageForTab() {
+  if (activeTab === 'splat') {
+    editStage.querySelectorAll('.edit-pin:not(.edit-apt-pin)').forEach((el) => el.remove())
+    aptPinsEditor.clearStagePins()
+    setActiveStageLayer('scene')
+    stageViewportController?.resetView()
+    splatEditor.mountStage()
+    return
+  }
+  splatEditor.unmountStage()
+
   if (activeTab === 'apartments') {
     setActiveStageLayer('facade')
     editStage.querySelectorAll('.edit-pin:not(.edit-apt-pin)').forEach((el) => el.remove())
@@ -320,6 +337,8 @@ async function applyAllProjectChanges(opts: { loadFromDisk?: boolean } = {}) {
     apartmentsState = getEditableApartmentsState()
     apartmentPoisState = getEditableApartmentPoisMap()
     apartmentOutlinesState = getEditableApartmentOutlinesState()
+    splatState = getEditableSplatStateFromConfig()
+    splatEditor.renderPanel()
   } else {
     poisMap = keepPois!
     syncProjectMediaToPoisMap(poisMap)
@@ -365,7 +384,7 @@ async function applyAllProjectChanges(opts: { loadFromDisk?: boolean } = {}) {
   markEditDirty()
 }
 
-const EDIT_TABS: EditTab[] = ['scene', 'poi', 'insolation', 'menu', 'book', 'apartments']
+const EDIT_TABS: EditTab[] = ['scene', 'poi', 'insolation', 'menu', 'book', 'apartments', 'splat']
 const EDIT_SAVED_FLAG = 'edit-project-saved'
 
 /** Salva concluído — recarrega o editor com JSON e mídias frescos do disco. */
@@ -400,8 +419,10 @@ let skipNextProjectUpdated = false
 let dockState: DockEditorState = getEditableDockState()
 let bookState: BookEditorState = getEditableInteriorsState()
 let apartmentsState: ApartmentsEditorState = getEditableApartmentsState()
+let splatState: SplatOverridesFile = getEditableSplatStateFromConfig()
 let apartmentPoisState: ApartmentPoisEditorState = getEditableApartmentPoisMap()
 let aptPinsEditor!: ReturnType<typeof initApartmentPinsEditor>
+let splatEditor!: ReturnType<typeof initSplatEditor>
 let stageViewportController: EditStageViewportHandle | null = null
 
 let apartmentOutlinesState: ApartmentOutlinesEditorState = getEditableApartmentOutlinesState()
@@ -469,6 +490,7 @@ sidebar.innerHTML = `
     <button type="button" class="edit-tab" data-tab="menu" role="tab">Menu</button>
     <button type="button" class="edit-tab" data-tab="book" role="tab">Book</button>
     <button type="button" class="edit-tab" data-tab="apartments" role="tab">Apartamentos</button>
+    <button type="button" class="edit-tab" data-tab="splat" role="tab">Gaussian Splat</button>
   </nav>
   <div class="edit-scroll">
     <section id="panel-scene" class="edit-panel active" role="tabpanel">
@@ -617,6 +639,9 @@ sidebar.innerHTML = `
         <button type="button" class="edit-btn edit-btn--danger" id="btn-apt-pin-remove" disabled>Remover pin</button>
       </div>
     </section>
+    <section id="panel-splat" class="edit-panel" role="tabpanel" hidden>
+      <div id="edit-splat-panel"></div>
+    </section>
   </div>
   <footer class="edit-foot">
     <button type="button" class="edit-btn edit-btn--primary" id="btn-save">Salvar no projeto</button>
@@ -673,6 +698,7 @@ const panelInsolation = document.getElementById('panel-insolation')!
 const panelMenu = document.getElementById('panel-menu')!
 const panelBook = document.getElementById('panel-book')!
 const panelApartments = document.getElementById('panel-apartments')!
+const panelSplat = document.getElementById('panel-splat')!
 const pinCountEl = document.getElementById('pin-count')!
 
 const poiPositionLockBtn = document.getElementById('poi-position-lock') as HTMLButtonElement
@@ -836,14 +862,18 @@ function setActiveTab(tab: EditTab) {
   panelBook.hidden = tab !== 'book'
   panelApartments.classList.toggle('active', tab === 'apartments')
   panelApartments.hidden = tab !== 'apartments'
+  panelSplat.classList.toggle('active', tab === 'splat')
+  panelSplat.hidden = tab !== 'splat'
   sidebar.classList.toggle(
     'is-poi-tab',
     tab === 'poi' ||
       tab === 'insolation' ||
       tab === 'menu' ||
       tab === 'book' ||
-      tab === 'apartments',
+      tab === 'apartments' ||
+      tab === 'splat',
   )
+  document.body.classList.toggle('edit-splat-tab', tab === 'splat')
   markEditDirty()
   refreshStageForTab()
   syncStagePinBackButton()
@@ -1039,6 +1069,8 @@ function installEditDirtyProbe() {
     hasPendingApartmentMedia: hasPendingApartmentMedia,
     hasPendingApartmentPinMedia: hasPendingApartmentPinMedia,
     hasInsolationPending,
+    splatState: () => splatState,
+    hasPendingSplatPly,
   })
 }
 
@@ -1176,6 +1208,22 @@ aptPinsEditor = initApartmentPinsEditor({
   onAptSubtabChange: (sub) => setAptSubtab(sub),
   shouldShowStagePins: () => activeTab === 'apartments' && activeAptSub === 'pins',
 })
+
+splatEditor = initSplatEditor({
+  panelEl: document.getElementById('edit-splat-panel')!,
+  stageViewport: stageViewport,
+  showToast,
+  onDirty: markEditDirty,
+  getState: () => splatState,
+  setState: (s) => {
+    splatState = s
+    markEditDirty()
+  },
+  getAvailableViews: () => getAvailableViewIndices(),
+  getViewLabel: (idx) => getViewpoint(idx)?.label ?? `Vista ${idx}`,
+})
+
+window.addEventListener('edit:splat-back', () => setActiveTab('scene'))
 
 stageViewportController = initEditStageViewport({
   viewportEl: stageViewport,
@@ -3062,9 +3110,11 @@ document.getElementById('btn-save')!.addEventListener('click', async () => {
     await flushAllPendingPoiMedia()
     await flushAllPendingMenuMedia()
     await flushAllInsolationPending()
+    await flushPendingSplatPly(showToast)
     syncProjectMediaToApartmentPois(apartmentPoisState)
     await bookEditor.persist()
     await apartmentsEditor.persist()
+    await splatEditor.persist()
     await persistPoisMapToProject()
     await aptPinsEditor.persist()
     if (!dockEditor.flushCardEdits()) {
@@ -3114,6 +3164,8 @@ document.getElementById('btn-reset')!.addEventListener('click', async () => {
     apartmentsState = getEditableApartmentsState()
     apartmentPoisState = getEditableApartmentPoisMap()
     apartmentOutlinesState = getEditableApartmentOutlinesState()
+    splatState = getEditableSplatStateFromConfig()
+    splatEditor.renderPanel()
     dockEditor.renderAll()
     bookEditor.renderAll()
     apartmentsEditor.renderAll()
@@ -3168,6 +3220,8 @@ void (async () => {
   apartmentsState = getEditableApartmentsState()
   apartmentPoisState = getEditableApartmentPoisMap()
   apartmentOutlinesState = getEditableApartmentOutlinesState()
+  splatState = getEditableSplatStateFromConfig()
+  splatEditor.renderPanel()
   dockEditor.renderAll()
   bookEditor.renderAll()
   apartmentsEditor.renderAll()
