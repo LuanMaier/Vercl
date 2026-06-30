@@ -1,7 +1,7 @@
 {
   "version": 1,
   "model": "/media/custom/splat-model.ply",
-  "dockEnabled": true,
+  "dockEnabled": false,
   "limits": {
     "zoomForwardPct": 30,
     "zoomBackwardPct": 30,
