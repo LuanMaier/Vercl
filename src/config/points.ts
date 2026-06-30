@@ -26,6 +26,14 @@ export const VIEWPOINTS: (Viewpoint | null)[] = [
     title: 'Apartamentos',
     desc: 'Unidades disponíveis do empreendimento.',
   },
+  {
+    id: 'interativo',
+    label: 'Interativo',
+    index: 3,
+    tag: 'Gaussian 3D',
+    title: 'Interativo',
+    desc: 'Modelo Gaussian Splat em 3D.',
+  },
   null,
   null,
   null,
@@ -63,4 +71,4 @@ export const VIEWPOINTS: (Viewpoint | null)[] = [
   },
 ]
 
-export const TRACK_ORDER = [0, 1, 2, 6, 9, 8, 7] as const
+export const TRACK_ORDER = [0, 1, 2, 3, 6, 9, 8, 7] as const

@@ -1,6 +1,21 @@
 {
   "version": 1,
   "model": "/media/custom/splat-model.ply",
+  "dockEnabled": true,
+  "limits": {
+    "zoomForwardPct": 30,
+    "zoomBackwardPct": 30,
+    "orbitYawPct": 100,
+    "orbitPitchPct": 0
+  },
+  "startView": {
+    "targetX": 0,
+    "targetY": 0,
+    "targetZ": 0,
+    "azimuth": 0.8724457616157626,
+    "polar": 0.8339616415560207,
+    "distance": 3.2062439083762855
+  },
   "pins": [
     {
       "id": "splat-pin-1782832209589",

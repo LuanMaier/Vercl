@@ -1,7 +1,9 @@
 import { APARTMENTS_HUB_VIEW } from '../config/apartments'
 import { INTERIORS_HUB_VIEW } from '../config/interiors'
+import { INTERACTIVE_HUB_VIEW } from '../config/interactive'
 import { isDockHubView } from '../config/dockHubs'
 import { getProjectLightSliderVideoPath } from '../config/projectMedia'
+import { isSplatInteractiveDockVisible } from '../config/splatConfig'
 import { getTrackOrder, getViewpoint } from '../config/pointsConfig'
 import type { ApartmentPoiManager } from '../core/apartmentPoiManager'
 import type { ExplorerEngine } from '../core/engine'
@@ -21,6 +23,7 @@ export function bindTrack(
   wrap.innerHTML = ''
 
   getTrackOrder().forEach((idx) => {
+    if (idx === INTERACTIVE_HUB_VIEW && !isSplatInteractiveDockVisible()) return
     const vp = getViewpoint(idx)
     if (!vp) return
     const el = document.createElement('button')
@@ -44,7 +47,12 @@ export function bindTrack(
           engine.toggleApartmentsPanel()
           return
         }
+        if (idx === INTERACTIVE_HUB_VIEW) {
+          engine.toggleInteractiveSplat()
+          return
+        }
       }
+      void engine.closeInteractiveSplat()
       void engine.closeInteriorsPanel()
       void engine.closeApartmentsPanel()
       void poiManager.navigateToView(idx)
@@ -77,6 +85,7 @@ export function syncUi(
 
   const moodBar = document.getElementById('mood-bar')
   const hideForHub =
+    engine.interactiveSplatOpen ||
     engine.interiorsPanelOpen ||
     Boolean(engine.activeInteriorId) ||
     engine.apartmentsPanelOpen ||
@@ -97,6 +106,7 @@ export function syncUi(
   document.body.classList.toggle('is-playing', engine.state === 'playing')
   document.body.classList.toggle('interiors-panel-open', engine.interiorsPanelOpen)
   document.body.classList.toggle('apartments-panel-open', engine.apartmentsPanelOpen)
+  document.body.classList.toggle('interactive-splat-open', engine.interactiveSplatOpen)
   document.body.classList.toggle('pin-immersive-active', engine.isPinImmersiveActive())
 
   const backBtn = document.getElementById('immersive-back')

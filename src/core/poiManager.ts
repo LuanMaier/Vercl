@@ -1,4 +1,5 @@
 import { APARTMENTS_HUB_VIEW } from '../config/apartments'
+import { INTERACTIVE_HUB_VIEW } from '../config/interactive'
 import { INTERIORS_HUB_VIEW } from '../config/interiors'
 import { getPoisForView, getChildPoisForParent, getParentIdsWithChildren, findPoiById, getAllConfiguredPoiIds } from '../config/poiConfig'
 import { getPoiCardMediaMode, getMenuMediaMode, getProjectPoiLoopVideoPath, isPoiLoopDirect } from '../config/projectMedia'
@@ -394,6 +395,7 @@ export class PoiManager {
 
   updateVisibility() {
     const hidePins =
+      this.engine.interactiveSplatOpen ||
       this.engine.interiorsPanelOpen ||
       Boolean(this.engine.activeInteriorId) ||
       this.engine.apartmentsPanelOpen ||
@@ -529,6 +531,11 @@ export class PoiManager {
       this.engine.toggleApartmentsPanel()
       return
     }
+    if (targetView === INTERACTIVE_HUB_VIEW) {
+      this.engine.toggleInteractiveSplat()
+      return
+    }
+    await this.engine.closeInteractiveSplat()
     await this.engine.closeInteriorsPanel()
     await this.engine.closeApartmentsPanel()
     if (this.engine.state === 'playing') return

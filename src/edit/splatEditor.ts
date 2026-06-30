@@ -9,6 +9,7 @@ import {
   getEditableSplatState,
   getSplatModelPath,
   type SplatPinDefinition,
+  type SplatMovementLimits,
   type SplatOverridesFile,
 } from '../config/splatConfig'
 import { resolveMediaPath } from '../core/paths'
@@ -77,11 +78,37 @@ export function initSplatEditor(deps: {
     deps.stageViewport.appendChild(splatHost)
   }
 
+  function resolveLimits(state: SplatOverridesFile): Required<SplatMovementLimits> {
+    const l = state.limits ?? {}
+    return {
+      zoomForwardPct: l.zoomForwardPct ?? 100,
+      zoomBackwardPct: l.zoomBackwardPct ?? 100,
+      orbitYawPct: l.orbitYawPct ?? 100,
+      orbitPitchPct: l.orbitPitchPct ?? 100,
+    }
+  }
+
+  function clampLimitPct(value: number): number {
+    if (!Number.isFinite(value)) return 100
+    return Math.min(100, Math.max(0, Math.round(value)))
+  }
+
+  function updateLimit(key: keyof SplatMovementLimits, raw: string) {
+    const state = deps.getState()
+    const limits = resolveLimits(state)
+    limits[key] = clampLimitPct(Number(raw))
+    deps.setState({ ...state, limits })
+    viewer?.setMovementLimits(limits)
+    deps.onDirty()
+  }
+
   function renderPanel() {
     const state = deps.getState()
     const hasSaved = Boolean(state.model)
     const hasPending = Boolean(pendingPly)
     const pins = state.pins ?? []
+    const limits = resolveLimits(state)
+    const hasStartView = Boolean(state.startView)
 
     deps.panelEl.innerHTML = `
       <button type="button" class="edit-back" data-splat-back>← Voltar à cena</button>
@@ -102,6 +129,46 @@ export function initSplatEditor(deps: {
           </div>
         </div>
         <button type="button" class="edit-btn edit-btn--ghost" data-splat-open-explorer ${hasSaved || hasPending ? '' : 'disabled'}>Abrir no explorador</button>
+      </div>
+      <div class="edit-card">
+        <div class="edit-field edit-field--row">
+          <label class="edit-field-label" for="splat-dock-enabled">Habilitar botão «Interativo» no menu</label>
+          <input type="checkbox" id="splat-dock-enabled" ${state.dockEnabled ? 'checked' : ''} ${hasSaved ? '' : 'disabled'} />
+        </div>
+        <p class="edit-card-hint">Quando ativo, visitantes veem o botão <strong>Interativo</strong> na barra inferior e abrem o Gaussian Splat na tela principal.</p>
+      </div>
+      <div class="edit-card edit-card--stack">
+        <div class="edit-card-row">
+          <span class="edit-card-kicker">Início da visualização</span>
+          <span class="edit-badge ${hasStartView ? 'is-ok' : ''}">${hasStartView ? 'Posição salva' : 'Padrão do PLY'}</span>
+        </div>
+        <p class="edit-card-hint">Gire e dê zoom na prévia até a câmera ficar na altura e ângulo desejados (ex.: sair de «debaixo da terra»). Salve aqui — essa é a vista inicial no site. Os <strong>limites de movimento</strong> abaixo usam esta posição como referência.</p>
+        <div class="edit-btn-row">
+          <button type="button" class="edit-btn edit-btn--gold" data-splat-save-start ${hasSaved || hasPending ? '' : 'disabled'}>Salvar posição atual</button>
+          <button type="button" class="edit-btn edit-btn--text" data-splat-reset-start ${hasStartView ? '' : 'disabled'}>Redefinir padrão</button>
+        </div>
+      </div>
+      <div class="edit-card edit-card--fields edit-card--stack">
+        <div class="edit-card-row">
+          <span class="edit-card-kicker">Limites de movimento</span>
+        </div>
+        <p class="edit-card-hint">Percentagens relativas à <strong>posição inicial</strong> da câmera ao carregar. <strong>100%</strong> = sem restrição. Zoom: aproximar/afastar em relação à distância inicial. Órbita: arco horizontal total de 360° ou vertical de 180°, centrado na vista inicial.</p>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-limit-zoom-forward">Zoom para frente (%)</label>
+          <input id="splat-limit-zoom-forward" class="edit-input" type="number" min="0" max="100" step="1" value="${limits.zoomForwardPct}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-limit-zoom-back">Zoom para trás (%)</label>
+          <input id="splat-limit-zoom-back" class="edit-input" type="number" min="0" max="100" step="1" value="${limits.zoomBackwardPct}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-limit-orbit-yaw">Órbita horizontal (%)</label>
+          <input id="splat-limit-orbit-yaw" class="edit-input" type="number" min="0" max="100" step="1" value="${limits.orbitYawPct}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
+        <div class="edit-field">
+          <label class="edit-field-label" for="splat-limit-orbit-pitch">Órbita vertical (%)</label>
+          <input id="splat-limit-orbit-pitch" class="edit-input" type="number" min="0" max="100" step="1" value="${limits.orbitPitchPct}" ${hasSaved || hasPending ? '' : 'disabled'} />
+        </div>
       </div>
       <div class="edit-card">
         <div class="edit-card-row">
@@ -217,7 +284,7 @@ export function initSplatEditor(deps: {
         }
         const saved = getSplatModelPath()
         if (saved) await removeMediaFromProject('splat-ply', {})
-        const next = { ...deps.getState(), model: null, pins: [] }
+        const next = { ...deps.getState(), model: null, pins: [], startView: null }
         deps.setState(next)
         selectedPinId = null
         deps.onDirty()
@@ -229,6 +296,45 @@ export function initSplatEditor(deps: {
 
     deps.panelEl.querySelector('[data-splat-open-explorer]')?.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('explorer:open-splat'))
+    })
+
+    deps.panelEl.querySelector('#splat-dock-enabled')?.addEventListener('change', (e) => {
+      const checked = (e.target as HTMLInputElement).checked
+      deps.setState({ ...deps.getState(), dockEnabled: checked })
+      deps.onDirty()
+    })
+
+    deps.panelEl.querySelector('[data-splat-save-start]')?.addEventListener('click', () => {
+      const snap = viewer?.getStartViewSnapshot()
+      if (!snap) {
+        deps.showToast('Carregue o PLY na prévia primeiro')
+        return
+      }
+      deps.setState({ ...deps.getState(), startView: snap })
+      deps.onDirty()
+      deps.showToast('Posição inicial salva')
+      renderPanel()
+    })
+
+    deps.panelEl.querySelector('[data-splat-reset-start]')?.addEventListener('click', () => {
+      deps.setState({ ...deps.getState(), startView: null })
+      viewer?.setStartView(null)
+      deps.onDirty()
+      deps.showToast('Posição inicial redefinida')
+      renderPanel()
+    })
+
+    deps.panelEl.querySelector('#splat-limit-zoom-forward')?.addEventListener('change', (e) => {
+      updateLimit('zoomForwardPct', (e.target as HTMLInputElement).value)
+    })
+    deps.panelEl.querySelector('#splat-limit-zoom-back')?.addEventListener('change', (e) => {
+      updateLimit('zoomBackwardPct', (e.target as HTMLInputElement).value)
+    })
+    deps.panelEl.querySelector('#splat-limit-orbit-yaw')?.addEventListener('change', (e) => {
+      updateLimit('orbitYawPct', (e.target as HTMLInputElement).value)
+    })
+    deps.panelEl.querySelector('#splat-limit-orbit-pitch')?.addEventListener('change', (e) => {
+      updateLimit('orbitPitchPct', (e.target as HTMLInputElement).value)
     })
 
     deps.panelEl.querySelector('[data-splat-place-pin]')?.addEventListener('click', () => {
@@ -316,6 +422,8 @@ export function initSplatEditor(deps: {
         canvas: splatCanvas,
         loadingEl: splatLoading,
         pinPlacement: placePinMode,
+        movementLimits: resolveLimits(deps.getState()),
+        startView: deps.getState().startView ?? null,
         onClickAngles: (angles) => {
           if (placePinMode) addPin(angles)
         },
@@ -323,6 +431,8 @@ export function initSplatEditor(deps: {
       viewer.mount()
     }
     viewer.setPinPlacement(placePinMode)
+    viewer.setMovementLimits(resolveLimits(deps.getState()))
+    viewer.setStartView(deps.getState().startView ?? null)
     await viewer.load(url)
     renderStagePins()
     startPinLoop()
@@ -390,7 +500,15 @@ export function initSplatEditor(deps: {
     await flushPendingSplatPly(deps.showToast)
     const state = deps.getState()
     const model = state.model ?? getSplatModelPath() ?? null
-    await saveSplatsToProject(buildSplatOverridesPayload(state.pins ?? [], model))
+    await saveSplatsToProject(
+      buildSplatOverridesPayload(
+        state.pins ?? [],
+        model,
+        state.dockEnabled,
+        resolveLimits(state),
+        state.startView ?? null,
+      ),
+    )
     deps.showToast('Splat finalizado')
   }
 

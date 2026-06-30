@@ -2,6 +2,7 @@ import './styles/explorer.css'
 import { ExplorerEngine } from './core/engine'
 import { Panorama360 } from './core/panorama360'
 import { SplatExplorerModal } from './core/splatExplorer'
+import { SplatStage } from './core/splatStage'
 import { PoiManager } from './core/poiManager'
 import { ApartmentPoiManager } from './core/apartmentPoiManager'
 import { ApartmentOutlineManager } from './core/apartmentOutlineManager'
@@ -86,6 +87,21 @@ splatExplorer.setPinClickHandler((pin) => {
   }
 })
 
+const stageEl = document.getElementById('stage')!
+const splatStage = new SplatStage(stageEl)
+engine.setSplatStageBridge({
+  open: () => splatStage.open(),
+  close: () => splatStage.close(),
+})
+splatStage.setPinClickHandler((pin) => {
+  void engine.closeInteractiveSplat().then(() => {
+    if (pin.targetView != null) {
+      void poiManager.navigateToView(pin.targetView)
+    }
+    syncUi(engine, poiManager, apartmentPoiManager)
+  })
+})
+
 engine.subscribe(() => syncUi(engine, poiManager, apartmentPoiManager))
 
 window.addEventListener('storage', (e) => {
@@ -128,6 +144,7 @@ window.addEventListener('explorer:project-updated', async () => {
   apartmentPoiManager.applyCrmStyles()
   apartmentOutlineManager.applyCrmStyles()
   rebuildExplorerDock()
+  void engine.closeInteractiveSplat()
   engine.showPoster(engine.currentView)
   syncUi(engine, poiManager, apartmentPoiManager)
 })
@@ -145,6 +162,11 @@ window.addEventListener('keydown', (e) => {
     }
     if (engine.apartmentsPanelOpen || engine.activeApartmentId) {
       void engine.closeApartmentsPanel()
+      syncUi(engine, poiManager, apartmentPoiManager)
+      return
+    }
+    if (engine.interactiveSplatOpen) {
+      void engine.closeInteractiveSplat()
       syncUi(engine, poiManager, apartmentPoiManager)
       return
     }

@@ -4,7 +4,7 @@
     0,
     1,
     2,
-    6
+    3
   ],
   "viewpoints": {
     "1": {
@@ -12,15 +12,6 @@
       "tag": "Por dentro",
       "title": "Interiores",
       "desc": "Ambientes internos do empreendimento."
-    },
-    "6": {
-      "label": "Praia",
-      "tag": "Área verde",
-      "title": "Parque",
-      "desc": "Área verde do empreendimento.",
-      "motionBlur": true,
-      "menuMediaMode": "loop",
-      "transitionImage": "/images/custom/view-6-menu.png"
     }
   },
   "removedViews": [

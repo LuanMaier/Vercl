@@ -1817,6 +1817,70 @@ body.is-playing .poi-card {
   display: none;
 }
 
+/* ── Gaussian Splat na tela principal (#stage) ── */
+#stage.splat-stage-active #seq-canvas,
+#stage.splat-stage-active .transition-video,
+#stage.splat-stage-active #transition-loading {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.stage-splat-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  background: #050503;
+}
+
+.stage-splat-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.stage-splat-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 240, 232, 0.85);
+}
+
+.stage-splat-loading.hidden {
+  display: none;
+}
+
+.stage-splat-pins {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.stage-splat-pins .splat-pin {
+  pointer-events: auto;
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+
+.stage-splat-pins .splat-pin.hidden {
+  display: none;
+}
+
+body.interactive-splat-open .poi:not(.splat-pin),
+body.interactive-splat-open .apt-outline-layer {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
 /* ── Gaussian Splat modal ── */
 #splat-modal {
   position: fixed;

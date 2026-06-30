@@ -22,6 +22,7 @@ import {
   resolveInteriorPageMediaPath,
 } from '../config/interiorPages'
 import { APARTMENTS_HUB_VIEW, apartmentMediaKey } from '../config/apartments'
+import { INTERACTIVE_HUB_VIEW } from '../config/interactive'
 import {
   getApartmentItem,
   getApartmentPagesForItem,
@@ -60,8 +61,12 @@ export class ExplorerEngine {
   interiorBookPageIndex = 0
   apartmentsPanelOpen = false
   activeApartmentId: string | null = null
+  /** Gaussian Splat na tela principal (#stage). */
+  interactiveSplatOpen = false
   /** Fachada CRM desenhada no canvas — highlights só aparecem após true. */
   apartmentFaceReady = false
+
+  private splatStageBridge: { open: () => Promise<boolean>; close: () => void } | null = null
 
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
@@ -1509,9 +1514,46 @@ export class ExplorerEngine {
   }
 
   getActiveTrackIndex() {
+    if (this.interactiveSplatOpen) return INTERACTIVE_HUB_VIEW
     if (this.apartmentsPanelOpen || this.activeApartmentId) return APARTMENTS_HUB_VIEW
     if (this.interiorsPanelOpen || this.activeInteriorId) return 1
     return this.currentView >= 6 ? this.currentView : 0
+  }
+
+  setSplatStageBridge(bridge: { open: () => Promise<boolean>; close: () => void } | null) {
+    this.splatStageBridge = bridge
+  }
+
+  toggleInteractiveSplat() {
+    if (this.interactiveSplatOpen) void this.closeInteractiveSplat()
+    else void this.openInteractiveSplat()
+  }
+
+  async openInteractiveSplat(): Promise<boolean> {
+    if (this.state === 'playing' || !this.splatStageBridge) return false
+    await this.closeInteriorsPanel()
+    await this.closeApartmentsPanel()
+    this.clearLightSliderFrame()
+    this.cancelPlayback()
+    this.videoPlayer?.stopLoop()
+    const ok = await this.splatStageBridge.open()
+    if (!ok) {
+      await this.showIdle(this.currentView)
+      return false
+    }
+    this.interactiveSplatOpen = true
+    this.emit()
+    return true
+  }
+
+  async closeInteractiveSplat(): Promise<void> {
+    if (!this.interactiveSplatOpen) return
+    this.splatStageBridge?.close()
+    this.interactiveSplatOpen = false
+    this.emit()
+    if (this.state === 'idle') {
+      await this.showIdle(this.currentView)
+    }
   }
 
   openInteriorsPanel() {

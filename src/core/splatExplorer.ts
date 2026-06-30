@@ -33,7 +33,7 @@ export class SplatExplorerModal {
   }
 
   async open(modelRef?: string, pins?: SplatPinDefinition[]) {
-    const { getSplatModelPath, getSplatPins } = await import('../config/splatConfig')
+    const { getSplatModelPath, getSplatMovementLimits, getSplatPins, getSplatStartView } = await import('../config/splatConfig')
     const ref = modelRef ?? getSplatModelPath()
     if (!ref) return
 
@@ -58,6 +58,8 @@ export class SplatExplorerModal {
       host: this.box,
       canvas: this.canvas,
       loadingEl: this.loading,
+      movementLimits: getSplatMovementLimits(),
+      startView: getSplatStartView() ?? null,
     })
     this.viewer.mount()
 
