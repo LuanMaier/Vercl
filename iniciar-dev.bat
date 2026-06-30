@@ -1,5 +1,5 @@
 @echo off
-title MVP Site Interativo - Dev Server
+title WebViz Explorer - Dev Server
 cd /d "%~dp0"
 
 where npm >nul 2>&1
@@ -28,7 +28,7 @@ if not exist "node_modules\" (
 
 echo.
 echo ========================================
-echo   MVP Site Interativo - modo desenvolvimento
+echo   WebViz Explorer - modo desenvolvimento
 echo ========================================
 echo.
 echo   Site:    http://localhost:5174/

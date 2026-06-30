@@ -1,5 +1,6 @@
 {
-  "name": "mvp-site-interativo",
+  "name": "webviz-explorer",
+  "description": "WebViz Explorer — experiência interativa archviz",
   "private": true,
   "version": "0.1.0",
   "type": "module",

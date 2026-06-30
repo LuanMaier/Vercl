@@ -1,7 +1,7 @@
 import { getApartmentItems } from '../config/apartmentsConfig'
 import { crmStatusClass, getCrmStatusForUnit } from '../config/crmConfig'
 import type { ExplorerEngine } from '../core/engine'
-import { collapseDockMenu } from './dockCollapse'
+import { collapseDockMenu, expandDockMenu } from './dockCollapse'
 import { observeDockTabsLayout, syncDockTabsLayout } from './dockLayout'
 import { bindTap } from './bindTap'
 
@@ -75,7 +75,7 @@ export function mountApartmentsNav(engine: ExplorerEngine, track: HTMLElement) {
     const open = engine.apartmentsPanelOpen
 
     if (open && !wasOpen) {
-      collapseDockMenu()
+      expandDockMenu()
       pts.querySelectorAll<HTMLElement>('.dock-apartment-tab').forEach((el) => {
         el.style.animation = 'none'
         void el.offsetHeight
