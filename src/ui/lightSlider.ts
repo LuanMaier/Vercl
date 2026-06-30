@@ -18,39 +18,28 @@ function expandSliderVideoCandidates(ref: string, resolved: string): string[] {
     if (src && !out.includes(src)) out.push(src)
   }
 
-  if (ref.includes('/media/mobile/')) push(ref)
-  else if (ref.includes('/media/')) push(ref.replace(/^\/media\//, '/media/mobile/'))
+  if (isMobileViewport()) {
+    if (ref.includes('/media/')) push(ref.replace(/^\/media\//, '/media/mobile/'))
+    push(ref.replace('/media/mobile/', '/media/'))
+  }
 
   for (const src of resolveVideoSrcCandidates({ type: 'video', src: resolved })) push(src)
   push(resolved)
   push(ref)
-  push(ref.replace('/media/mobile/', '/media/'))
+
+  if (!isMobileViewport() && ref.includes('/media/')) {
+    push(ref.replace('/media/mobile/', '/media/'))
+  }
 
   return out
 }
 
-function seekVideoTo(video: HTMLVideoElement, time: number, interactive: boolean): void {
-  const duration = video.duration
-  if (!duration || !Number.isFinite(duration)) return
-
-  const clamped = Math.max(0, Math.min(time, duration - 0.001))
-  if (Math.abs(video.currentTime - clamped) < (interactive ? 0.008 : 0.02)) return
-
-  try {
-    const fastSeek = (video as HTMLVideoElement & { fastSeek?: (t: number) => void }).fastSeek
-    if (interactive && typeof fastSeek === 'function') fastSeek.call(video, clamped)
-    else video.currentTime = clamped
-  } catch {
-    /* ignore */
-  }
-}
-
-function waitForSeek(video: HTMLVideoElement, time: number): Promise<void> {
+function seekToTime(video: HTMLVideoElement, time: number): Promise<void> {
   const duration = video.duration
   if (!duration || !Number.isFinite(duration)) return Promise.resolve()
 
   const clamped = Math.max(0, Math.min(time, duration - 0.001))
-  if (Math.abs(video.currentTime - clamped) < 0.02) return Promise.resolve()
+  if (Math.abs(video.currentTime - clamped) < 0.012) return Promise.resolve()
 
   return new Promise((resolve) => {
     let settled = false
@@ -62,10 +51,14 @@ function waitForSeek(video: HTMLVideoElement, time: number): Promise<void> {
       resolve()
     }
     const onSeeked = () => finish()
-    const timer = window.setTimeout(finish, isMobileViewport() ? 180 : 280)
+    const timer = window.setTimeout(finish, isMobileViewport() ? 200 : 320)
 
     video.addEventListener('seeked', onSeeked)
-    seekVideoTo(video, clamped, false)
+    try {
+      video.currentTime = clamped
+    } catch {
+      finish()
+    }
   })
 }
 
@@ -84,6 +77,20 @@ async function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
   })
 }
 
+async function primeVideoForScrub(video: HTMLVideoElement): Promise<boolean> {
+  if (!video.duration || !Number.isFinite(video.duration)) return false
+  try {
+    video.muted = true
+    await video.play()
+  } catch {
+    /* iOS pode exigir gesto */
+  }
+  video.pause()
+  await seekToTime(video, 0)
+  await waitForVideoFrame(video)
+  return video.readyState >= 2 && video.videoWidth > 0
+}
+
 function mountSolarVideoElement(): HTMLVideoElement {
   const video = document.createElement('video')
   video.muted = true
@@ -95,9 +102,17 @@ function mountSolarVideoElement(): HTMLVideoElement {
   video.className = 'light-slider-source-video'
   video.preload = 'auto'
 
-  const stage = document.getElementById('stage')
-  if (stage) stage.appendChild(video)
-  else document.body.appendChild(video)
+  if (isMobileViewport()) {
+    const stage = document.getElementById('stage')
+    if (stage) stage.appendChild(video)
+    else document.body.appendChild(video)
+    return video
+  }
+
+  /* Desktop: off-screen — decode + canvas draw estável no Chrome */
+  video.style.cssText =
+    'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;visibility:hidden'
+  document.body.appendChild(video)
   return video
 }
 
@@ -115,10 +130,10 @@ export function mountLightSlider(
   let loadGen = 0
   let scrubToken = 0
   let scrubbing = false
-  let scrubRaf = 0
-  let pendingProgress: number | null = null
   let videoPrimed = false
   let primePromise: Promise<boolean> | null = null
+  let seekInFlight = false
+  let queuedProgress: number | null = null
   let frameInitial: HTMLImageElement | null = null
   let frameFinal: HTMLImageElement | null = null
   let endpointGen = 0
@@ -172,27 +187,15 @@ export function mountLightSlider(
       Boolean(video.src) &&
       video.readyState >= 2 &&
       Number.isFinite(video.duration) &&
-      video.duration > 0 &&
-      video.videoWidth > 0
+      video.duration > 0
     )
   }
 
-  async function primeVideoForScrub(): Promise<boolean> {
+  async function ensureVideoPrimed(): Promise<boolean> {
     if (!isVideoReady()) return false
-    if (videoPrimed) return true
+    if (videoPrimed && video.videoWidth > 0) return true
     if (!primePromise) {
-      primePromise = (async () => {
-        try {
-          video.muted = true
-          await video.play()
-        } catch {
-          /* iOS: gesto necessário */
-        }
-        video.pause()
-        await waitForSeek(video, 0)
-        await waitForVideoFrame(video)
-        return isVideoReady()
-      })().finally(() => {
+      primePromise = primeVideoForScrub(video).finally(() => {
         primePromise = null
       })
     }
@@ -200,44 +203,35 @@ export function mountLightSlider(
     return videoPrimed
   }
 
-  function paintVideoFrame() {
-    if (!video.videoWidth) return
-    hideTransitionVideos()
-    engine.presentVideoFrame(video)
-  }
-
-  async function presentVideoProgress(progress: number, interactive: boolean) {
+  async function presentVideoProgress(progress: number): Promise<boolean> {
     if (!isVideoReady()) return false
-    if (!(await primeVideoForScrub())) return false
+    if (!(await ensureVideoPrimed())) return false
 
     const token = ++scrubToken
     const t = progress * video.duration
-
-    if (interactive) {
-      seekVideoTo(video, t, true)
-      if (token !== scrubToken) return false
-      paintVideoFrame()
-      return true
-    }
-
-    await waitForSeek(video, t)
+    await seekToTime(video, t)
     if (token !== scrubToken) return false
     await waitForVideoFrame(video)
     if (token !== scrubToken || !video.videoWidth) return false
-    paintVideoFrame()
+
+    hideTransitionVideos()
+    engine.presentVideoFrame(video)
     return true
   }
 
-  function queueLiveScrub(progress: number) {
-    pendingProgress = progress
-    if (scrubRaf) return
-    scrubRaf = requestAnimationFrame(() => {
-      scrubRaf = 0
-      const p = pendingProgress
-      pendingProgress = null
-      if (p == null) return
-      void presentVideoProgress(p, true)
-    })
+  async function drainVideoScrub() {
+    if (seekInFlight || queuedProgress == null) return
+    seekInFlight = true
+    const p = queuedProgress
+    queuedProgress = null
+    await presentVideoProgress(p)
+    seekInFlight = false
+    if (queuedProgress != null) void drainVideoScrub()
+  }
+
+  function queueVideoScrub(progress: number) {
+    queuedProgress = progress
+    void drainVideoScrub()
   }
 
   function showProgress(progress: number) {
@@ -261,12 +255,7 @@ export function mountLightSlider(
       return
     }
 
-    if (scrubbing) {
-      queueLiveScrub(p)
-      return
-    }
-
-    void presentVideoProgress(p, false)
+    queueVideoScrub(p)
   }
 
   function maybeRestoreHeldFrame() {
@@ -343,6 +332,10 @@ export function mountLightSlider(
       return false
     }
 
+    if (!isMobileViewport()) {
+      await ensureVideoPrimed()
+    }
+
     maybeRestoreHeldFrame()
     return true
   }
@@ -362,8 +355,6 @@ export function mountLightSlider(
 
   function endScrub() {
     scrubbing = false
-    const p = progressFromRange()
-    void presentVideoProgress(p, false)
   }
 
   const beginScrub = () => {
@@ -371,7 +362,7 @@ export function mountLightSlider(
     scrubbing = true
     void (async () => {
       if (!isVideoReady()) await loadForView(engine.currentView)
-      await primeVideoForScrub()
+      await ensureVideoPrimed()
       if (scrubbing) applyProgress(progressFromRange())
     })()
   }
@@ -438,7 +429,7 @@ export function mountLightSlider(
 
   return () => {
     unsub()
-    if (scrubRaf) cancelAnimationFrame(scrubRaf)
+    queuedProgress = null
     video.remove()
   }
 }
